@@ -60,11 +60,15 @@ function renderWorkflow(lcd,menuOpen){
     if(!host.querySelector('textarea'))host.innerHTML='<div class="workflow-title"></div><textarea id="program-editor" aria-label="Program source" spellcheck="false"></textarea><div class="assign-hint">EXE:New line  EXIT:Save</div>';
     host.querySelector('.workflow-title').textContent=s.title;
     const area=host.querySelector('textarea');if(area.value!==s.program.source)area.value=s.program.source;
-    area.oninput=()=>{s.program.source=area.value;save();};return;
+    if(s.cursor!==undefined)area.setSelectionRange(s.cursor,s.selectionEnd??s.cursor);
+    const remember=()=>{s.cursor=area.selectionStart;s.selectionEnd=area.selectionEnd;};area.onselect=remember;area.onclick=remember;area.onkeyup=remember;
+    area.oninput=()=>{s.program.source=area.value;remember();save();};return;
   }
   let body='',hint='EXIT:Back';
   if(s.type==='wizard'){const [name,label,def,kind]=s.fields[s.index];body='<div>'+esc(label)+'</div><div class="workflow-entry">'+(s.entry.source?s.entry.html(true):(kind==='text'?esc(s.values[name]??def):naturalValue(s.values[name]??def))+'<span class="math-cursor"></span>')+'</div>';hint='EXE:Next  '+(s.index+1)+'/'+s.fields.length;}
+  else if(s.type==='grid'&&s.matrix){const cols=s.labels.length,r=Math.floor(s.index/cols),c=s.index%cols,rs=Math.max(0,r-1),cs=Math.max(0,c-2);body='<div class="matrix-cells" style="grid-template-columns:repeat('+Math.min(3,cols)+',1fr)">'+s.data.slice(rs,rs+2).map((row,ri)=>row.slice(cs,cs+3).map((v,ci)=>'<span class="'+(rs+ri===r&&cs+ci===c?'selected':'')+'">'+esc(Number(v.toPrecision(6)))+'</span>').join('')).join('')+'</div><div class="matrix-value">'+(r+1)+','+(c+1)+' '+(s.entry.source?s.entry.html(true):naturalValue(s.data[r][c]))+'</div>';hint=s.readonly?'Mat Ans    EXE:Back':'EXE:Store   EXIT:Back';}
   else if(s.type==='grid'){const cols=s.labels.length,r=Math.floor(s.index/cols),c=s.index%cols;body='<div>'+esc(s.labels[c])+'['+(r+1)+']</div><div class="workflow-entry">'+(s.entry.source?s.entry.html(true):naturalValue(s.data[r][c])+'<span class="math-cursor"></span>')+'</div>';hint=s.stat?'EXE:Store  FUNCTION:STAT':'EXE:Store  ◀▶▲▼';}
+  else if(s.type==='programPause'){body='<pre>'+esc(s.lines[0])+'</pre>';hint='◢  EXE:Continue';}
   else if(s.type==='confirm'){body='<div>Are you sure?</div>';hint='EXE:Yes  EXIT:Cancel';}
   else {body='<pre>'+esc(s.lines.length?s.lines.slice(s.index,s.index+2).map((x,i)=>(s.type==='list'?(i===0?'▶':' '):'')+x).join('\n'):'Empty')+'</pre>';hint='▲▼ '+(s.lines.length?s.index+1:0)+'/'+s.lines.length+'  '+(s.select?'EXE:Select':'EXIT:Back');}
   host.innerHTML='<div class="workflow-title">'+esc(s.title)+'</div>'+body+'<div class="assign-hint">'+hint+'</div>';

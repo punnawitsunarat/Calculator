@@ -40,6 +40,7 @@
     return z;
   }
   function tokenize(source) {
+    source=source.replace(/(\d+(?:\.\d*)?|\.\d+)°(?:(\d+(?:\.\d*)?|\.\d+)′)?(?:(\d+(?:\.\d*)?|\.\d+)″)?/g,(_,d,m,s)=>`(${Number(d)+Number(m||0)/60+Number(s||0)/3600})`);
     source=source.replace(/arc\s*(sin|cos|tan)/gi,(_,f)=>'a'+f.toLowerCase()).replace(/(sin|cos|tan)⁻¹/g,(_,f)=>'a'+f);
     source=source.replace(/×/g,'*').replace(/÷/g,'/').replace(/[−–]/g,'-').replace(/π/g,'pi').replace(/√/g,'sqrt').replace(/²/g,'^2').replace(/⁻¹/g,'^(-1)');
     if(source.length>4096) fail('Expression too long');
@@ -172,6 +173,27 @@
     }
     if(op==='determinant')return det;if(op==='inverse')return mat.map(r=>r.slice(n));fail('Unknown matrix operation');
   }
+  function matrixExpression(source,memories,variables,angle){
+    const tokens=source.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').match(/Mat\s*(?:Ans|[A-F])|det|Trn|(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?|[A-Z]|\S/g)||[];
+    let p=0;const isMatrix=Array.isArray;
+    const scalar=x=>{if(isMatrix(x))fail('Math ERROR: scalar required');return x;};
+    function expr(min=0){let t=tokens[p++],a;
+      if(t==='-'||t==='+'){a=expr(35);if(t==='-')a=isMatrix(a)?a.map(r=>r.map(x=>-x)):-a;}
+      else if(t==='('){a=expr();if(tokens[p++]!==')')fail('Syntax ERROR');}
+      else if(t==='det'||t==='Trn'){if(tokens[p++]!=='(')fail('Syntax ERROR');a=expr();if(tokens[p++]!==')'||!isMatrix(a))fail('Argument ERROR');a=matrix(a,null,t==='det'?'determinant':'transpose');}
+      else if(/^Mat/.test(t||'')){a=memories[t.replace(/Mat\s*/,'')];if(!a)fail('Dimension ERROR: '+t);a=a.map(r=>r.slice());}
+      else if(/^(?:\d|\.)/.test(t||''))a=Number(t);
+      else if(/^[A-Z]$/.test(t||''))a=real(variables[t]||C(0));
+      else fail('Syntax ERROR: matrix expression');
+      while(p<tokens.length){const op=tokens[p],bp={'+':10,'-':10,'*':20,'/':20,'^':40}[op];if(bp===undefined||bp<min)break;p++;const b=expr(op==='^'?bp:bp+1);
+        if(op==='^'&&isMatrix(a)){const n=scalar(b);if(!Number.isInteger(n)||n< -1||n>10)fail('Math ERROR: matrix power');if(n===-1)a=matrix(a,null,'inverse');else{if(a.length!==a[0].length)fail('Dimension ERROR');let result=a.map((r,i)=>r.map((_,j)=>Number(i===j)));for(let i=0;i<n;i++)result=matrix(result,a,'multiply');a=result;}}
+        else if(isMatrix(a)&&isMatrix(b)){if(!['+','-','*'].includes(op))fail('Math ERROR');a=matrix(a,b,{'+':'add','-':'subtract','*':'multiply'}[op]);}
+        else if(isMatrix(a)||isMatrix(b)){if(op==='*'){const m=isMatrix(a)?a:b,n=isMatrix(a)?b:a;a=m.map(r=>r.map(v=>v*n));}else if(op==='/'&&isMatrix(a)&&b!==0)a=a.map(r=>r.map(v=>v/b));else fail('Math ERROR: matrix/scalar operation');}
+        else {if(op==='/'&&!b)fail('Math ERROR: division by zero');a=op==='+'?a+b:op==='-'?a-b:op==='*'?a*b:op==='/'?a/b:a**b;}
+      }return a;
+    }
+    const result=expr();if(p!==tokens.length)fail('Syntax ERROR');const values=isMatrix(result)?result.flat():[result];if(values.some(v=>!Number.isFinite(v)))fail('Math ERROR');return result;
+  }
   function polynomial(coefficients) {
     const c=coefficients; if(c.length<3||c.length>4||!c[0]||c.some(x=>!Number.isFinite(x)))fail('Enter 3 or 4 coefficients; leading coefficient must be nonzero');
     if(c.length===3){const d=pow(C(c[1]*c[1]-4*c[0]*c[2]),.5);return [div(add(-c[1],d),2*c[0]),div(sub(-c[1],d),2*c[0])];}
@@ -189,9 +211,9 @@
     const recurse=(a,b,fa,fm,fb,s,tol,depth)=>{const m=(a+b)/2,l=f((a+m)/2),r=f((m+b)/2),sl=sim(a,m,fa,l,fm),sr=sim(m,b,fm,r,fb),err=sl+sr-s;if(Math.abs(err)<=15*tol)return sl+sr+err/15;if(!depth)fail('Integration did not converge');return recurse(a,m,fa,l,fm,sl,tol/2,depth-1)+recurse(m,b,fm,r,fb,sr,tol/2,depth-1);};
     const fa=f(a),fm=f((a+b)/2),fb=f(b);return recurse(a,b,fa,fm,fb,sim(a,b,fa,fm,fb),1e-8,16);
   }
-  function runProgram(source,initial={},angle='DEG',inputs={}) {
+  function* programSteps(source,initial={},angle='DEG',inputs={},interactive=false) {
     const vars=Object.assign({},initial),lists={},output=[],stack=[],pairs={},elses={},labels={};
-    const lines=source.replace(/->/g,'→').split(/\r?\n|:(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(s=>s.trim()).filter(s=>s&&!s.startsWith("'"));
+    const lines=source.replace(/->/g,'→').replace(/◢(?=(?:[^"]*"[^"]*")*[^"]*$)/g,'\n◢\n').split(/\r?\n|:(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(s=>s.trim()).filter(s=>s&&!s.startsWith("'"));
     if(lines.length>4000)fail('Program too long');
     const emit=s=>{if(output.length>=2000)fail('Output limit exceeded');output.push(s);};
     lines.forEach((s,i)=>{
@@ -224,7 +246,8 @@
         else if(/^Lbl /i.test(s)){}
         else if(/^Goto /i.test(s)){const i=labels[s.slice(5).trim()];if(i===undefined)fail('Label not found');pc=i+1;}
         else if((m=/^(.+)→Dim\s+List\s+([A-Z])$/i.exec(s))){const n=real(ev(m[1]));if(!Number.isInteger(n)||n<1||n>1000)fail('List dimension 1…1000');lists[m[2]]=Array.from({length:n},()=>C(0));}
-        else if((m=/^\?\s*→\s*([A-Z])$/.exec(s))){if(inputs[m[1]]===undefined)fail('Input required: '+m[1]+' (enter it in Inputs)');vars[m[1]]=C(inputs[m[1]]);}
+        else if(s==='◢'){if(interactive)yield {type:'display',text:output.at(-1)||format(vars.Ans||C(0)),variables:vars,statement:here+1};}
+        else if((m=/^\?\s*→\s*([A-Z])$/.exec(s))){let value=inputs[m[1]];if(interactive)value=yield {type:'input',variable:m[1],variables:vars,statement:here+1};if(value===undefined)fail('Input required: '+m[1]+' (enter it in Inputs)');vars[m[1]]=C(value);}
         else if((m=/^(.+)→\s*List\s+([A-Z])\[([^\]]+)\]$/i.exec(s))){const i=real(ev(m[3]));if(!Number.isInteger(i)||!lists[m[2]]||i<1||i>lists[m[2]].length)fail('List index ERROR');lists[m[2]][i-1]=ev(m[1]);}
         else if((m=/^(.+)→\s*([A-Z])$/.exec(s)))vars[m[2]]=ev(m[1]);
         else if(/^".*"$/.test(s))emit(s.slice(1,-1));
@@ -233,6 +256,7 @@
     }
     return {variables:vars,lists,output,steps};
   }
+  function runProgram(source,initial={},angle='DEG',inputs={}){return programSteps(source,initial,angle,inputs,false).next().value;}
   function dispatch(request) {
     const r=request,vars=r.variables||{},angle=r.angle||'DEG';
     switch(r.action) {
@@ -243,6 +267,7 @@
       case 'variables':return {names:[...new Set(tokenize(r.expression).filter(t=>t.t==='name'&&/^[A-Z]$/.test(t.v)).map(t=>t.v))]};
       case 'statistics':return statistics(r.rows);
       case 'matrix':return {result:matrix(r.a,r.b,r.operation)};
+      case 'matrixExpression':return {result:matrixExpression(r.expression,r.matrices||{},vars,angle)};
       case 'polynomial':return {roots:polynomial(r.coefficients).map(format)};
       case 'linear':{const inverse=matrix(r.a,null,'inverse');return {roots:matrix(inverse,r.b,'multiply').map(row=>numberText(row[0]))};}
       case 'calculus':return {text:numberText(calculus(r.operation,r.expression,r.start,r.end,vars,angle))};
@@ -263,7 +288,7 @@
       default:fail('Unknown action');
     }
   }
-  root.CalEngine={evaluate,format,fraction,dispatch};
+  root.CalEngine={evaluate,format,fraction,dispatch,createProgram:(source,variables,angle)=>programSteps(source,variables,angle,{},true)};
   root.calculateJSON=function(json){try{return JSON.stringify({ok:true,result:dispatch(JSON.parse(json))},(_,v)=>{if(typeof v==='number'&&!Number.isFinite(v))fail('Math ERROR: non-finite result');return v;});}catch(e){return JSON.stringify({ok:false,error:e.message||String(e)});}};
   if(typeof module!=='undefined')module.exports=root.CalEngine;
 })(typeof globalThis!=='undefined'?globalThis:this);

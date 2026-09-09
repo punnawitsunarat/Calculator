@@ -29,8 +29,8 @@
     restore(tree){this.tree=JSON.parse(JSON.stringify(tree));this.seq=this.tree;this.pos=this.tree.length;}
     load(s){
       this.clear();
-      const tokens=s.match(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[a-zA-Z]+(?=\()|Ans|pi|[^\s]/g)||[];let p=0;
-      const chars=s=>(s.match(/Ans|pi|./gs)||[]).map(text);
+      const tokens=s.match(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[a-zA-Z]+(?=\()|MatAns|Mat[A-F]|Ans|pi|[^\s]/g)||[];let p=0;
+      const chars=s=>(s.match(/MatAns|Mat[A-F]|Ans|pi|./gs)||[]).map(text);
       function expr(min=0){
         const t=tokens[p++];let a;
         if(t==='('){a=[{type:'group',body:expr()}];if(tokens[p++]!==')')throw Error('syntax');}
@@ -66,7 +66,7 @@
       if(s==='×10^'){this.insert('×10');this.power();return;}
       if(/^[A-Za-z]+\($/.test(s)){this.template('function',s.slice(0,-1));return;}
       if(s==='^(1/'){this.template('nthroot');return;}
-      const tokens=s.match(/Ans|pi|./gs)||[];this.seq.splice(this.pos,0,...tokens.map(text));this.pos+=tokens.length;
+      const tokens=s.match(/MatAns|Mat[A-F]|Ans|pi|./gs)||[];this.seq.splice(this.pos,0,...tokens.map(text));this.pos+=tokens.length;
     }
     takeAtom(){
       if(!this.pos)return [];
@@ -121,7 +121,7 @@
     html(showCursor=true){
       const render=seq=>{
         const cursor=i=>showCursor&&this.seq===seq&&this.pos===i?'<span class="math-cursor" aria-hidden="true"></span>':'';
-        if(!seq.length)return seq===this.tree?cursor(0):`<span class="math-empty">${cursor(0)}<span>□</span></span>`;
+        if(!seq.length)return seq===this.tree?cursor(0):`<span class="math-empty">${cursor(0)}<span class="math-slot" aria-hidden="true"></span></span>`;
         return `<span class="math-sequence">${seq.map((n,i)=>{
           const sub=f=>render(n[f]);let html;
           switch(n.type){

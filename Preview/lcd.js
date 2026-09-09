@@ -8,9 +8,9 @@
     math:['1:∫dX   2:d/dX\n3:d²/dX² 4:Σ(\n5:x!    6:Ran#\n7:nPr   8:nCr   ▼','1:Abs   2:Int\n3:Frac  4:Intg\n5:Pol   6:Rec\n7:logab 8:RanInt ↕','1:sinh  2:cosh\n3:tanh  4:sinh⁻¹\n5:cosh⁻¹ 6:tanh⁻¹\n               ↕','1:m 2:μ 3:n 4:p\n5:f 6:k 7:M 8:G\n               ↕','1:T 2:P        ▲'],
     complex:['1:Abs   2:Arg\n3:Conjg 4:ReP\n5:ImP   6:→r∠θ\n7:→a+bi'],
     angle:['1:°  2:r  3:g\n4:→DMS'],eng:['1:EngOn 2:EngOff'],complexFormat:['1:a+bi  2:r∠θ'],frequency:['1:FreqOn\n2:FreqOff'],signed:['1:Signed\n2:Unsigned'],
-    program:['1:NEW   2:RUN\n3:EDIT  4:DELETE'],commands:['1:?     2:→\n3:If    4:Then\n5:Else  6:IfEnd\n7:For   8:Next  ▼','1:While 2:WhileEnd\n3:Lbl   4:Goto\n5:Break 6:Stop   ▲'],
+    program:['1:NEW   2:RUN\n3:EDIT  4:DELETE'],commands:['1:?     2:→\n3:If    4:Then\n5:Else  6:IfEnd\n7:For   8:Next  ▼','1:While 2:WhileEnd\n3:Lbl   4:Goto\n5:Break 6:Stop\n7:To    8:Step   ↕','1:◢     2:Do\n3:LpWhile      ▲'],
     stat:['1:LIST  2:VAR\n3:DISTR 4:Reg'],statVar:['1:n  2:x̄\n3:σx 4:sx     ▼','1:Σx² 2:Σx     ↕','1:minX 2:maxX  ▲'],regVar:['1:n  2:x̄\n3:σx 4:sx\n5:ȳ  6:σy\n7:sy           ▼','1:Σx² 2:Σx\n3:Σy² 4:Σy\n5:Σxy          ▲'],regCoefficients:['1:a 2:b 3:c\n4:r'],distribution:['1:P( 2:Q( 3:R(\n4:→t'],regression:['1:Line  2:Quad\n3:Log   4:eExp\n5:abExp 6:Power\n7:Inv'],
-    matrix:['1:EDIT  2:Mat\n3:det   4:Trn\n5:Inverse\n6:+  7:−  8:×'],matrixName:['1:Mat A 2:Mat B\n3:Mat C 4:Mat D\n5:Mat E 6:Mat F'],
+    matrix:['1:EDIT  2:Mat\n3:det   4:Trn'],matrixName:['1:Mat A 2:Mat B\n3:Mat C 4:Mat D\n5:Mat E 6:Mat F'],
     equation:['1:aX+bY=c\n2:aX+bY+cZ=d\n3:4 Unknowns\n4:5 Unknowns   ▼','1:aX²+bX+c=0\n2:aX³+bX²+cX+d=0\n               ▲'],
     system:['1:Contrast\n2:Reset Setup\n3:Reset All'],clr:['1:Stat\n2:Memory'],base:['1:DEC  2:HEX\n3:BIN  4:OCT'],
     fix:['Fix 0~9?'],sci:['Sci 0~9?\n0 = 10 digits'],norm:['Norm 1~2?']
@@ -22,9 +22,9 @@
     snapshot(){return {...super.snapshot(),frequency:this.frequency,signed:this.signed,eng:this.eng,complexFormat:this.complexFormat,mixed:this.mixed,matrices:this.matrices,statRows:this.statRows,regModel:this.regModel,programs:this.programs};}
     get active(){return this.screen?.entry||super.active;}
     refreshResult(){super.refreshResult();if(this.eng){this.result=this.numericText();this.resultHTML=null;}}
-    clear(){super.clear();this.screen=null;}
+    clear(){super.clear();this.screen=null;this.running=null;this.dmsDisplay=false;}
     startEntry(chain){if(!this.screen)super.startEntry(chain);}
-    insert(s){if(this.screen?.entry){this.error=null;this.screen.entry.insert(s);return;}super.insert(s);}
+    insert(s){if(this.screen?.type==='program'){this.programInsert(s);return;}if(this.screen?.entry){this.error=null;this.screen.entry.insert(s);return;}super.insert(s);}
     numericText(value=this.value){if(this.complexFormat==='r∠θ'&&value.im){const factor=this.angle==='RAD'?1:this.angle==='GRA'?200/Math.PI:180/Math.PI;return this.engine.format({re:Math.hypot(value.re,value.im),im:0})+'∠'+this.engine.format({re:Math.atan2(value.im,value.re)*factor,im:0});}if(this.eng&&value.re&&!value.im&&this.numberMode==='Norm'){const e=Math.floor(Math.log10(Math.abs(value.re))/3)*3;return Number((value.re/10**e).toPrecision(10))+'×10^'+e;}return super.numericText(value);}
     openMenu(kind,extra={}){this.menu={kind,page:0,parent:this.menu,...extra};}
     menuText(){if(pages[this.menu?.kind])return pages[this.menu.kind][this.menu.page||0];return super.menuText();}
@@ -35,7 +35,27 @@
     grid(title,data,labels,finish,back=null){this.menu=null;this.screen={type:'grid',title,data,labels,index:0,entry:new this.natural.Editor(),finish,back};}
     chooseProgram(action){const parent=()=>this.openTool('program');if(!this.programs.length){this.output('Prog List',['No programs'],parent);return;}this.menu=null;this.screen={type:'list',title:'Prog '+action,lines:this.programs.map(p=>p.name),index:0,back:parent,select:i=>{const p=this.programs[i];if(action==='EDIT')this.screen={type:'program',title:p.name,program:p,back:parent};else if(action==='DELETE')this.confirm('Delete '+p.name,()=>{this.programs.splice(i,1);this.chooseProgram(action);});else this.runProgram(p);}};}
     confirm(title,run){const previous=this.screen;this.menu=null;this.screen={type:'confirm',title,run,back:()=>{this.screen=previous;}};}
-    runProgram(p){const names=[...new Set([...p.source.matchAll(/\?\s*→\s*([A-Z])/g)].map(m=>m[1]))];const run=inputs=>{const a=this.dispatch({action:'program',source:p.source,inputs});this.variables=a.variables;this.output(p.name,a.output.length?a.output:['Done'],()=>this.chooseProgram('RUN'));};if(names.length)this.wizard(p.name,names.map(n=>[n,n+'?',0]),run);else run({});}
+    runProgram(p){this.running={program:p,iterator:this.engine.createProgram(p.source,JSON.parse(JSON.stringify(this.variables)),this.angle)};this.resumeProgram();}
+    resumeProgram(value){
+      const run=this.running;if(!run)return;
+      const next=run.iterator.next(value);
+      if(next.done){this.variables=next.value.variables;this.running=null;this.output(run.program.name,next.value.output.length?next.value.output:['Done'],()=>this.chooseProgram('RUN'));return;}
+      this.variables=next.value.variables;
+      if(next.value.type==='input')this.wizard(run.program.name,[[next.value.variable,next.value.variable+'?',this.variables[next.value.variable]?.re||0]],v=>this.resumeProgram(v[next.value.variable]),()=>{this.running=null;this.chooseProgram('RUN');});
+      else this.screen={type:'programPause',title:run.program.name,lines:[next.value.text],index:0};
+    }
+    programInsert(text){const s=this.screen;if(s?.type!=='program')return;const at=s.cursor??s.program.source.length,end=s.selectionEnd??at;s.program.source=s.program.source.slice(0,at)+text+s.program.source.slice(end);s.cursor=at+text.length;s.selectionEnd=s.cursor;}
+    dmsText(value){if(value.im)throw Error('Math ERROR: real DMS required');const scale=1e6,total=Math.round(Math.abs(value.re)*3600*scale);if(!Number.isSafeInteger(total))throw Error('Math ERROR: DMS range');const d=Math.floor(total/(3600*scale)),m=Math.floor(total/(60*scale))%60,sec=(total%(60*scale))/scale;return (value.re<0?'−':'')+d+'°'+m+'′'+sec+'″';}
+    calculate(){
+      const source=this.editor.complete();
+      if(/Mat(?:\s*[A-F]|Ans)/.test(source)){
+        const answer=this.dispatch({action:'matrixExpression',expression:source,matrices:this.matrices});
+        if(Array.isArray(answer.result)){this.matrices.Ans=answer.result;this.grid('Mat Ans',answer.result,answer.result[0].map((_,i)=>String(i+1)),()=>{this.screen=null;});this.screen.matrix=true;this.screen.readonly=true;this.done=true;}
+        else this.accept({value:{re:answer.result,im:0}},source);return;
+      }
+      super.calculate();this.dmsDisplay=/°/.test(source)&&!/[A-Za-z^]/.test(source);if(this.dmsDisplay){this.result=this.dmsText(this.value);this.resultHTML=null;}
+    }
+    matrixList(){this.menu=null;this.screen={type:'list',title:'Matrix Memory',lines:['A','B','C','D','E','F'].map(n=>'Mat '+n+'  '+(this.matrices[n]?this.matrices[n].length+'×'+this.matrices[n][0].length:'None')),index:0,matrixList:true,select:i=>this.editMatrix(String.fromCharCode(65+i)),back:()=>this.openTool('matrix')};}
     openTool(kind,operation){this.error=null;this.menu=null;this.assignment=null;this.screen=null;
       if(kind==='program'){this.openMenu('program');return;}
       if(kind==='history'){this.screen={type:'list',title:'REPLAY',lines:this.history.map(h=>h.expression+' = '+h.result),index:Math.max(0,this.history.length-1),select:i=>{this.screen=null;this.recall(this.history[i]);}};return;}
@@ -78,7 +98,11 @@
       const value=values?.[n-1];if(value===null||value===undefined||!Number.isFinite(value))throw Error('Math ERROR: statistic unavailable');
       this.menu=null;this.screen=null;this.insert('('+value+')');
     }
-    editMatrix(name){this.wizard('Mat '+name,[['rows','Rows (1–10)',this.matrices[name]?.length||2],['cols','Columns (1–10)',this.matrices[name]?.[0]?.length||2]],v=>{this.integer(v.rows,1,10);this.integer(v.cols,1,10);const a=Array.from({length:v.rows},(_,r)=>Array.from({length:v.cols},(_,c)=>this.matrices[name]?.[r]?.[c]||0));this.grid('Mat '+name,a,Array.from({length:v.cols},(_,c)=>String(c+1)),()=>{this.matrices[name]=a;this.output('Mat '+name,['Stored'],()=>this.openTool('matrix'));});});}
+    editMatrix(name,resize=false){
+      const edit=a=>{this.matrices[name]=a;this.grid('Mat '+name,a,a[0].map((_,c)=>String(c+1)),()=>{},()=>this.matrixList());this.screen.matrix=true;this.screen.matrixName=name;};
+      if(this.matrices[name]&&!resize){edit(this.matrices[name]);return;}
+      this.wizard('Mat '+name,[['rows','m (1–10)',this.matrices[name]?.length||2],['cols','n (1–10)',this.matrices[name]?.[0]?.length||2]],v=>{this.integer(v.rows,1,10);this.integer(v.cols,1,10);edit(Array.from({length:v.rows},()=>Array(v.cols).fill(0)));},()=>this.matrixList());
+    }
     matrixAction(name,operation){if(operation==='edit'){this.editMatrix(name);return;}const a=this.matrices[name];if(!a)throw Error('Dimension ERROR: define Mat '+name);if(operation==='view'){this.output('Mat '+name,a.map(r=>r.join(' ')),()=>this.openTool('matrix'));return;}if(['add','subtract','multiply'].includes(operation)){this.openMenu('matrixName',{operation:'binary',a,op:operation});return;}const answer=this.dispatch({action:'matrix',operation,a});this.output('Mat '+name,Array.isArray(answer.result)?answer.result.map(r=>r.join(' ')):[answer.result],()=>this.openTool('matrix'));}
     equation(type,size){const linear=type==='linear',data=Array.from({length:linear?size:1},()=>Array(linear?size+1:size+1).fill(0));this.grid('EQN coefficients',data,Array.from({length:size+1},(_,i)=>String.fromCharCode(97+i)),()=>{let roots;if(linear){const inv=this.dispatch({action:'matrix',operation:'inverse',a:data.map(r=>r.slice(0,-1))}).result;roots=inv.map(r=>r.reduce((sum,x,j)=>sum+x*data[j][size],0));}else roots=this.dispatch({action:'polynomial',coefficients:data[0]}).roots;this.output('EQN Result',roots.map((x,i)=>'X'+(i+1)+'='+x),()=>this.equation(type,size));});}
     menuKey(id){const m=this.menu;if(!m)return false;const n=Number(id),p=m.page||0,k=m.kind;
@@ -93,11 +117,11 @@
       if(k==='math'){if(p===0&&n>=1&&n<=4){this.openTool('calculus',['integral','derivative','secondDerivative','sum'][n-1]);return true;}const items=[['','','','','!','Ran#','nPr(','nCr('],['abs(','Int(','Frac(','Intg(','Pol(','Rec(','logab(','RandInt('],['sinh(','cosh(','tanh(','asinh(','acosh(','atanh('],['×10^(-3)','×10^(-6)','×10^(-9)','×10^(-12)','×10^(-15)','×10^3','×10^6','×10^9'],['×10^12','×10^15']];if(items[p]?.[n-1])token(items[p][n-1]);return true;}
       if(k==='complex'){if(n===6||n===7){this.complexFormat=n===6?'r∠θ':'a+bi';this.menu=null;this.refreshResult();}else if(n>=1&&n<=5)token(['abs(','Arg(','Conjg(','ReP(','ImP('][n-1]);return true;}
       if(k==='constants'){if(n>=1&&n<=8)token('('+constants[p*8+n-1][1]+')');return true;}
-      if(k==='angle'){if(n>=1&&n<=3){const source=this.screen?.entry?.complete()||this.editor.complete();const factor=[Math.PI/180,1,Math.PI/200][n-1]/(this.angle==='RAD'?1:this.angle==='GRA'?Math.PI/200:Math.PI/180);this.active.load('('+source+')×('+factor+')');this.menu=null;}else if(n===4){this.menu=null;this.calculate();const x=Math.abs(this.value.re),d=Math.floor(x),min=Math.floor((x-d)*60),sec=Number(((x-d-min/60)*3600).toFixed(6));this.result=(this.value.re<0?'−':'')+d+'°'+min+'′'+sec+'″';this.resultHTML=null;}return true;}
+      if(k==='angle'){if(n>=1&&n<=3){const source=this.screen?.entry?.complete()||this.editor.complete();const factor=[Math.PI/180,1,Math.PI/200][n-1]/(this.angle==='RAD'?1:this.angle==='GRA'?Math.PI/200:Math.PI/180);this.active.load('('+source+')×('+factor+')');this.menu=null;}else if(n===4){this.menu=null;this.calculate();this.dmsDisplay=true;this.result=this.dmsText(this.value);this.resultHTML=null;}return true;}
       if(k==='program'){if(n===1){this.wizard('NEW Program',[['name','Name (1–12)','PROGRAM','text']],v=>{if(!/^[A-Za-z0-9_-]{1,12}$/.test(v.name)||this.programs.some(p=>p.name===v.name))throw Error('Name ERROR');const program={name:v.name,source:''};this.programs.push(program);this.screen={type:'program',title:program.name,program,back:()=>this.openTool('program')};});}else if(n>=2&&n<=4)this.chooseProgram(['RUN','EDIT','DELETE'][n-2]);return true;}
-      if(k==='commands'){const s=[['?','→','If ','Then ','Else','IfEnd','For ','Next'],['While ','WhileEnd','Lbl ','Goto ','Break','Stop']][p][n-1];if(s){this.menu=null;if(this.screen?.type==='program')this.screen.program.source+=s;else this.insert(s);}return true;}
-      if(k==='matrix'){if(n>=1&&n<=8)sub('matrixName'),this.menu.operation=['edit','view','determinant','transpose','inverse','add','subtract','multiply'][n-1];return true;}
-      if(k==='matrixName'){if(n>=1&&n<=6){const name=String.fromCharCode(64+n);if(m.operation==='binary'){const a=this.dispatch({action:'matrix',operation:m.op,a:m.a,b:this.matrices[name]}).result;this.output('Mat Result',a.map(r=>r.join(' ')),()=>this.openTool('matrix'));}else this.matrixAction(name,m.operation);}return true;}
+      if(k==='commands'){const s=[['?','→','If ','Then ','Else','IfEnd','For ','Next'],['While ','WhileEnd','Lbl ','Goto ','Break','Stop',' To ',' Step '],['◢','Do','LpWhile ']][p][n-1];if(s){this.menu=null;if(this.screen?.type==='program')this.programInsert(s);else this.insert(s);}return true;}
+      if(k==='matrix'){if(n===1)this.matrixList();if(n===2){sub('matrixName');this.menu.operation='insert';}if(n===3)token('det(');if(n===4)token('Trn(');return true;}
+      if(k==='matrixName'){if(n>=1&&n<=6){const name=String.fromCharCode(64+n);if(m.operation==='insert'){token('Mat'+name);return true;}if(m.operation==='binary'){const a=this.dispatch({action:'matrix',operation:m.op,a:m.a,b:this.matrices[name]}).result;this.output('Mat Result',a.map(r=>r.join(' ')),()=>this.openTool('matrix'));}else this.matrixAction(name,m.operation);}return true;}
       if(k==='equation'){if(p===0&&n>=1&&n<=4)this.equation('linear',n+1);else if(p===1&&n>=1&&n<=2)this.equation('polynomial',n+1);return true;}
       if(k==='stat'){if(n===1)this.statGrid();if(n===2)sub(this.mode==='REG'?'regVar':'statVar');if(n===4)sub('regCoefficients');if(n===3)sub('distribution');return true;}
       if(['statVar','regVar','regCoefficients'].includes(k)){if(n>=1&&n<=7)this.statValue(k,p,n);return true;}
@@ -108,20 +132,32 @@
       return super.menuKey(id);
     }
     screenKey(key){const s=this.screen,[id,label,value,shiftValue,alpha]=key;if(!s)return false;
-      if(id==='exit'){this.screen=null;if(s.back)s.back();return true;}
+      if(id==='exit'){if(s.type==='programPause')this.running=null;this.screen=null;if(s.back)s.back();return true;}
       if(s.type==='confirm'){if(id==='exe')s.run();return true;}
-      if(s.type==='program'){if(['mode','function','shift','alpha'].includes(id))return false;if(id==='exe')s.program.source+='\n';else if(id==='del')s.program.source=s.program.source.slice(0,-1);else s.program.source+=this.alpha&&alpha?alpha:this.shift?(shiftValue||''):(value||label);this.shift=false;if(!this.lock)this.alpha=false;return true;}
-      if(s.type==='output'||s.type==='list'){if(id==='up'||id==='down')s.index=Math.max(0,Math.min(s.lines.length-1,s.index+(id==='down'?1:-1)));else if(id==='exe'&&s.select&&s.lines.length)s.select(s.index);else if(id==='exe')s.index=Math.min(s.lines.length-1,s.index+1);else if(['function','mode'].includes(id))return false;return true;}
+      if(s.type==='programPause'){if(id==='exe')this.resumeProgram();return true;}
+      if(s.matrixList){if(id==='right'){this.editMatrix(String.fromCharCode(65+s.index),true);return true;}if(id==='del'){const name=String.fromCharCode(65+s.index);this.confirm('Delete Mat '+name,()=>{delete this.matrices[name];this.matrixList();});return true;}}
+      if(s.type==='program'){
+        if(['mode','function','shift','alpha'].includes(id))return false;
+        const source=s.program.source,at=s.cursor??source.length;
+        if(id==='left'||id==='right')s.cursor=Math.max(0,Math.min(source.length,at+(id==='left'?-1:1)));
+        else if(id==='up'||id==='down'){const start=source.lastIndexOf('\n',at-1)+1,col=at-start;if(id==='up'){const prev=source.lastIndexOf('\n',start-2)+1;s.cursor=Math.max(0,Math.min(start-1,prev+col));}else{const next=source.indexOf('\n',at);const end=source.indexOf('\n',next+1);s.cursor=next<0?source.length:Math.min(end<0?source.length:end,next+1+col);}}
+        else if(id==='exe')this.programInsert('\n');
+        else if(id==='del'){if((s.selectionEnd??at)>at)this.programInsert('');else if(at){s.cursor=at-1;s.selectionEnd=at;this.programInsert('');}}
+        else this.programInsert(this.alpha&&alpha?alpha:this.shift?(shiftValue||''):(value||label));
+        s.selectionEnd=s.cursor;this.shift=false;if(!this.lock)this.alpha=false;return true;
+      }
+      if(s.type==='output'||s.type==='list'){if(s.matrixList&&/^[1-6]$/.test(id)){s.select(Number(id)-1);return true;}if(id==='up'||id==='down')s.index=Math.max(0,Math.min(s.lines.length-1,s.index+(id==='down'?1:-1)));else if(id==='exe'&&s.select&&s.lines.length)s.select(s.index);else if(id==='exe')s.index=Math.min(s.lines.length-1,s.index+1);else if(['function','mode'].includes(id))return false;return true;}
+      if(s.readonly){if(id==='exe'){this.screen=null;return true;}if(['plus','minus','multiply','divide','power','square'].includes(id)){this.screen=null;this.editor.load('MatAns');this.done=false;return false;}if(!['left','right','up','down','exit'].includes(id))return true;}
       if(id==='del'){s.entry.backspace();return true;}
       if(id==='left'||id==='right'||id==='up'||id==='down'){if(s.entry.source){s.entry.move(id);return true;}if(s.type==='wizard'){if(id==='up'||id==='down')s.index=Math.max(0,Math.min(s.fields.length-1,s.index+(id==='down'?1:-1)));}else{s.index=Math.max(0,Math.min(s.data.length*s.labels.length-1,s.index+(id==='left'?-1:id==='right'?1:id==='up'?-s.labels.length:s.labels.length)));}return true;}
       if(id==='exe'){
         if(s.type==='wizard'){const [name,,def,kind]=s.fields[s.index],source=s.entry.source||String(s.values[name]??def);s.values[name]=kind==='expr'||kind==='text'?source:this.real(s.entry.source?s.entry.complete():source);s.entry.clear();if(s.index<s.fields.length-1)s.index++;else s.finish(s.values);}
-        else {const cols=s.labels.length,r=Math.floor(s.index/cols),c=s.index%cols;if(s.entry.source)s.data[r][c]=this.real(s.entry.complete());s.entry.clear();if(s.stat){s.committed=Math.max(s.committed,r+1);this.statRows=s.data.slice(0,s.committed).map(row=>row.slice());if(r===s.data.length-1){if(s.data.length>=199)throw Error('Memory ERROR: 199 rows');s.data.push(s.labels.map(l=>l==='Freq'?1:0));}s.index+=cols;}else if(s.index<s.data.length*cols-1)s.index++;else s.finish();}return true;
+        else {const cols=s.labels.length,r=Math.floor(s.index/cols),c=s.index%cols;if(s.entry.source)s.data[r][c]=this.real(s.entry.complete());s.entry.clear();if(s.stat){s.committed=Math.max(s.committed,r+1);this.statRows=s.data.slice(0,s.committed).map(row=>row.slice());if(r===s.data.length-1){if(s.data.length>=199)throw Error('Memory ERROR: 199 rows');s.data.push(s.labels.map(l=>l==='Freq'?1:0));}s.index+=cols;}else if(s.matrix){s.index=(s.index+1)%(s.data.length*cols);}else if(s.index<s.data.length*cols-1)s.index++;else s.finish();}return true;
       }
       if(s.stat&&(id==='calc'||id==='function')){this.statRows=s.data.slice(0,s.committed).map(r=>r.slice());if(id==='calc')this.statResults();else this.openMenu('stat');return true;}
       return false;
     }
-    press(key){try{const id=key[0];if(this.on&&!this.menu&&!this.screen&&!this.error&&id==='file'&&!this.shift&&!this.alpha){this.chooseProgram('RUN');return;}if(this.error&&id==='exit'){this.error=null;return;}if(this.screen&&id==='ac'&&!this.shift){if(this.screen.entry){this.screen.entry.clear();this.error=null;return;}this.screen=null;}if(this.on&&!this.error&&!this.menu&&this.screen&&!['shift','alpha'].includes(id)&&!(this.shift&&id==='mode')&&this.screenKey(key))return;const action=super.press(key);if(action?.tool)this.openTool(action.tool,action.operation);return;}catch(e){this.error=e.message||'Math ERROR';}}
+    press(key){try{const id=key[0];if(this.on&&!this.error&&!this.menu&&!this.alpha&&id==='dms'&&this.screen?.type!=='program'){this.shift=false;if(this.done&&!this.screen&&!this.assignment){this.dmsDisplay=!this.dmsDisplay;this.result=this.dmsDisplay?this.dmsText(this.value):this.numericText();this.resultHTML=null;}else{const tail=this.active.source.split(/[+−×÷=,]/).at(-1);const marker=/°[^′]*′[^″]*$/.test(tail)?'″':/°[^′]*$/.test(tail)?'′':'°';this.insert(marker);}return;}if(this.on&&!this.menu&&!this.screen&&!this.error&&id==='file'&&!this.shift&&!this.alpha){this.chooseProgram('RUN');return;}if(this.error&&id==='exit'){this.error=null;return;}if(this.screen&&id==='ac'&&!this.shift){if(this.screen.entry){this.screen.entry.clear();this.error=null;return;}this.screen=null;}if(this.on&&!this.error&&!this.menu&&this.screen&&!['shift','alpha'].includes(id)&&!(this.shift&&id==='mode')&&this.screenKey(key))return;const action=super.press(key);if(action?.tool)this.openTool(action.tool,action.operation);return;}catch(e){this.error=e.message||'Math ERROR';}}
   }
   root.CalLCD={Machine};if(typeof module!=='undefined')module.exports=root.CalLCD;
 })(typeof globalThis!=='undefined'?globalThis:this);

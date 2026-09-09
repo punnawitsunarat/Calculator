@@ -46,3 +46,6 @@
 Added coverage: inverse trig exact radians/principal domains, two-page MODE/SETUP and FUNCTION hierarchy, all MODE entry routes, natural TABLE input, matrix entry/determinant, polynomial and simultaneous EQN, SD row editing and VAR, program persistence and reference loop, second derivative, seven regression models and invalid domains, DISTR, signed/unsigned base conversion, engineering output, and absence of dialog markup/popup APIs.
 
 Browser QA: real keypad clicks for SHIFT sin(0.5) = 30, SETUP second page, TABLE entry/results, FILE program execution; visual LCD inspection and console error check. Native iOS validation remains outstanding.
+
+
+MATRIX / PROG / DMS: keypad tests cover memory editing/persistence, inverse and Mat Ans chaining, transpose, repeated runtime input, skipped input branches, ◢ continuation, editor cursor insertion/deletion, DMS arithmetic/toggling and rounding carry. Visual checks at 390×844 show fraction placeholders and highlighted matrix grid fitting the LCD.

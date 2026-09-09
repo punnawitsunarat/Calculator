@@ -24,7 +24,7 @@ test('TABLE accepts natural expression and range on LCD',()=>{
  const m=make();press(m,'mode','7','exe','1','exe','3','exe','1','exe');assert.equal(m.error,null);assert.deepEqual(m.screen.lines,['1  1','2  4','3  9']);press(m,'exit');assert.equal(m.screen.type,'wizard');
 });
 test('matrix coefficients, store and determinant through physical menus',()=>{
- const m=make();press(m,'function','8','1','1','exe','exe');for(const v of ['1','2','3','4'])press(m,v,'exe');assert.equal(m.error,null);assert.deepEqual(m.matrices.A,[[1,2],[3,4]]);press(m,'exit','3','1');assert.equal(m.screen.lines[0],'-2');
+ const m=make();press(m,'function','8','1','1','exe','exe');for(const v of ['1','2','3','4'])press(m,v,'exe');assert.equal(m.error,null);assert.deepEqual(m.matrices.A,[[1,2],[3,4]]);press(m,'exit','exit','3','function','8','2','1','exe');assert.equal(m.result,'-2');
 });
 test('quadratic and simultaneous equation coefficient entry',()=>{
  const m=make();press(m,'mode','8','down','1','1','exe','negative','3','exe','2','exe');assert.equal(m.error,null);assert.deepEqual(m.screen.lines,['X1=2','X2=1']);
@@ -66,4 +66,28 @@ test('base signed and unsigned settings affect conversion',()=>{
 });
 test('engineering SETUP output is not overwritten by exact fraction rendering',()=>{
  const m=make();press(m,'shift','mode','down','3','1');m.insert('12345');press(m,'exe');assert.equal(m.result,'12.345×10^3');assert.equal(m.resultHTML,null);
+});
+
+test('DMS physical key enters components, carries seconds and toggles decimal',()=>{
+ const m=make();press(m,'2','dms','2','0','dms','3','0','dms','plus','0','dms','3','9','dms','3','0','dms','exe');assert.equal(m.error,null);assert.equal(m.result,'3°0′0″');press(m,'dms');assert.equal(m.result,'3');press(m,'dms');assert.equal(m.result,'3°0′0″');
+ press(m,'ac','2','dms','2','0','dms','multiply','3','dot','5','exe');assert.equal(m.result,'8°10′0″');
+ press(m,'ac','2','dot','2','5','5','exe','dms');assert.equal(m.result,'2°15′18″');
+ assert.equal(m.dmsText({re:1+59/60+59.9999999/3600,im:0}),'2°0′0″');
+});
+test('matrix expressions support inverse, multiplication, transpose and Mat Ans',()=>{
+ const m=make();m.matrices.A=[[1,2],[3,4]];m.matrices.B=[[2,0],[0,2]];
+ press(m,'function','8','2','1','shift','close','multiply','function','8','2','1','exe');assert.equal(m.error,null);m.matrices.Ans.flat().forEach((x,i)=>near(x,[1,0,0,1][i]));assert.equal(m.screen.readonly,true);
+ press(m,'multiply','2','exe');assert.equal(m.error,null);m.matrices.Ans.flat().forEach((x,i)=>near(x,[2,0,0,2][i]));
+ const r=engine.dispatch({action:'matrixExpression',expression:'Trn(MatA)+MatB',matrices:m.matrices}).result;assert.deepEqual(r,[[3,3],[2,6]]);
+});
+test('matrix saves each EXE and reopens at existing dimensions without a wizard',()=>{
+ const m=make();m.editMatrix('A');press(m,'exe','exe','7','exe','exit');assert.equal(m.matrices.A[0][0],7);press(m,'exe');assert.equal(m.screen.type,'grid');assert.equal(m.screen.data[0][0],7);
+});
+test('program input occurs in execution order, repeats in loops, and display pauses',()=>{
+ const m=make();m.runProgram({name:'INPUT',source:'For 1→N To 2\n?→A\nA*2◢\nNext'});
+ assert.equal(m.screen.fields[0][0],'A');press(m,'3','exe');assert.equal(m.screen.type,'programPause');assert.equal(m.screen.lines[0],'6');press(m,'exe');assert.equal(m.screen.fields[0][0],'A');press(m,'4','exe');assert.equal(m.screen.lines[0],'8');press(m,'exe');assert.equal(m.running,null);assert.equal(m.variables.A.re,4);
+ const n=make();n.runProgram({name:'BRANCH',source:'If 0\nThen\n?→A\nIfEnd\n7'});assert.equal(n.screen.type,'output');assert.deepEqual(n.screen.lines,['7']);
+});
+test('program physical arrows and DEL edit at cursor rather than append',()=>{
+ const m=make(),program={name:'EDIT',source:'123'};m.screen={type:'program',title:'EDIT',program};press(m,'left','del','9');assert.equal(program.source,'193');press(m,'exe');assert.equal(program.source,'19\n3');
 });

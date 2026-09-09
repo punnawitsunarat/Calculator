@@ -77,3 +77,12 @@ SETUP, FUNCTION และ FMLA เปลี่ยนเป็นเมนูบ�
 ## สิ่งที่ต้องทำเพื่อยืนยันระดับ 100%
 
 ต้องมีชุดข้อมูลทดสอบจากเครื่องจริงหรือ reference implementation ที่ตรวจสอบได้ แยกทดสอบทุกโหมด ทุก key sequence การปัดเศษ ข้อผิดพลาด หน่วยความจำ โปรแกรมและการแสดงผล รวมถึงเติมฟังก์ชันที่ยังขาด แล้วเทียบผลบน iOS จริง ไม่สามารถยืนยันจากภาพนิ่งเพียงภาพเดียวหรือจากการผ่าน unit tests ของโปรเจกต์นี้ได้
+
+
+## MATRIX / PROG / DMS update
+
+- Matrix memory list shows None or dimensions. EXE opens an existing matrix directly; Right redefines dimensions, DEL asks before deleting. Grid edits save on each EXE; EXIT returns to memory list.
+- COMP supports MatA–MatF and MatAns in arithmetic expressions, scalar multiply/divide, inverse, integer powers 0–10, det and Trn. Mat Ans is a read-only grid and operator keys chain it into the next calculation. Literal matrix assignment syntax, complex matrices and complete firmware context menus remain unsupported.
+- Program editor supports physical cursor arrows, insertion and deletion at the selection. Program execution suspends at each actual ?→variable (including repeated loop input); skipped branches do not ask for values. ◢ pauses until EXE. Execution resumes without rerunning earlier statements. Subroutine calls and the full Casio language are still not emulated.
+- Physical °′″ enters degrees, minutes, seconds in sequence; EXE evaluates sexagesimal input. The result key toggles decimal/DMS with carried seconds/minutes. Existing dms(d,m,s) engine API remains supported. General typed degree-unit suffix conversion beyond these workflows is not a full firmware emulation.
+- Natural input placeholders use proportionate CSS outlines instead of the platform-dependent square glyph.
