@@ -1,0 +1,14 @@
+.DS_Store
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.ipa
+*.dSYM/
+dist/
+tmp/
+*.zip
+.env
+.env.*
+!.env.example
+node_modules/
