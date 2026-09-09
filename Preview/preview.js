@@ -41,8 +41,6 @@ keyRows.forEach((row,r)=>row.forEach((key,c)=>addKey(key,49+c*(r<4?48.5:58.5),to
 [['mode','MODE',49,263,44,43],['function','FUNCTION',105,283,41,42],['left','◁',169,264,43,51],['up','△',216,253,67,26],['right','▷',286,264,44,51],['down','▽',216,302,68,24]].forEach(([id,label,x,y,w,h])=>addKey([id,label],x,y,w,h));
 function press(key){state.press(key);save();render();}
 function openTool(kind){state.openTool(kind);save();render();}
-$('help').addEventListener('click',()=>openTool('help'));
-$('history-button').addEventListener('click',()=>openTool('history'));
 document.addEventListener('keydown',event=>{
   if(event.target.id==='program-editor'||event.ctrlKey||event.metaKey||event.altKey)return;
   if(event.key==='='&&state.alpha){event.preventDefault();press(['rcl','RCL',null,null,'=']);return;}
