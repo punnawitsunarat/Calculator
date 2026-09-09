@@ -12,3 +12,11 @@ main{width:100%;height:100%;min-height:0;flex:none;padding:0;overflow:hidden}
 .machine{height:100%;width:auto;max-width:100%;aspect-ratio:377/733;flex-shrink:0;filter:none}
 .machine>img{border-radius:0}
 @media(max-width:600px) and (orientation:portrait){.machine{width:100%;height:100%;aspect-ratio:auto}.machine>img{object-fit:fill}}
+
+/* Mask only the photographed paper outside the device silhouette. */
+.machine>img{
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 377 733' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M35 10 Q183 0 347 9 Q367 9 369 24 L370 83 L366 121 L360 576 L368 580 L369 621 L370 626 L369 688 Q368 713 352 718 Q205 734 35 720 Q16 719 15 700 L9 413 Q4 412 5 397 L5 344 Q5 336 11 335 L12 30 Q11 12 35 10Z'/%3E%3C/svg%3E");
+  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 377 733' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M35 10 Q183 0 347 9 Q367 9 369 24 L370 83 L366 121 L360 576 L368 580 L369 621 L370 626 L369 688 Q368 713 352 718 Q205 734 35 720 Q16 719 15 700 L9 413 Q4 412 5 397 L5 344 Q5 336 11 335 L12 30 Q11 12 35 10Z'/%3E%3C/svg%3E");
+  -webkit-mask-size:100% 100%;mask-size:100% 100%;
+  -webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;
+}
