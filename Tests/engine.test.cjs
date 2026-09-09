@@ -26,6 +26,22 @@ test('complex arithmetic, conjugate, magnitude and phase', () => {
   const q=ev('(1+i)/(1-i)');near(q.re,0);near(q.im,1);
   near(ev('sqrt(-1)').im,1); near(ev('Conjg(3+4i)').im,-4); near(ev('abs(3+4i)').re,5);near(ev('Arg(1+i)').re,45);
 });
+test('polar phasor angle notation ∠ and quadratic vertex', () => {
+  const z1 = ev('10∠0'); near(z1.re, 10); near(z1.im, 0);
+  const z2 = ev('5∠90'); near(z2.re, 0); near(z2.im, 5);
+  const z3 = ev('5∠180'); near(z3.re, -5); near(z3.im, 0);
+  const z4 = ev('10∠30 + 10∠-30'); near(z4.re, 10 * Math.sqrt(3)); near(z4.im, 0);
+  const z5 = ev('(2∠60) * (3∠30)'); near(z5.re, 0); near(z5.im, 6);
+  const zRad = run({action:'evaluate', expression:'2∠(pi/2)', angle:'RAD'}).value; near(zRad.re, 0); near(zRad.im, 2);
+  const poly = run({action:'polynomial', coefficients:[1, -3, 2]});
+  assert.equal(poly.vertex.type, 'Minimum');
+  near(Number(poly.vertex.x), 1.5);
+  near(Number(poly.vertex.y), -0.25);
+  const polyMax = run({action:'polynomial', coefficients:[-1, 4, -3]});
+  assert.equal(polyMax.vertex.type, 'Maximum');
+  near(Number(polyMax.vertex.x), 2);
+  near(Number(polyMax.vertex.y), 1);
+});
 test('factorial, combinatorics, percentages and DMS', () => {
   near(ev('5!').re,120); near(ev('nCr(52,5)').re,2598960);near(ev('nPr(10,3)').re,720);near(ev('200×15%').re,30);near(ev('dms(30,15,30)').re,30.2583333333333);
   assert.throws(()=>ev('nCr(3,5)'),/Argument/);assert.throws(()=>ev('70!'),/range/);
@@ -113,3 +129,42 @@ test('JSON bridge operates without Node, isolates requests and returns recoverab
   const good=JSON.parse(context.calculateJSON(JSON.stringify({action:'evaluate',expression:'6×7'})));assert.equal(good.ok,true);assert.equal(good.result.text,'42');
   assert.equal(JSON.parse(context.calculateJSON('{bad')).ok,false);
 });
+test('Base-N evaluation, bitwise logic, prefixes, and 32-bit two complement', () => {
+  assert.equal(run({action:'baseEvaluate',expression:'F+1',base:'HEX'}).text, '10');
+  assert.equal(run({action:'baseEvaluate',expression:'1F+1',base:'HEX'}).text, '20');
+  assert.equal(run({action:'baseEvaluate',expression:'1010 and 1100',base:'BIN'}).text, '1000');
+  assert.equal(run({action:'baseEvaluate',expression:'1010 or 0101',base:'BIN'}).text, '1111');
+  assert.equal(run({action:'baseEvaluate',expression:'1100 xor 1010',base:'BIN'}).text, '110');
+  assert.equal(run({action:'baseEvaluate',expression:'b1100 xnor b1010',base:'HEX'}).text, 'FFFFFFF9');
+  assert.equal(run({action:'baseEvaluate',expression:'Not(0)',base:'HEX'}).text, 'FFFFFFFF');
+  assert.equal(run({action:'baseEvaluate',expression:'Neg(1)',base:'HEX'}).text, 'FFFFFFFF');
+  assert.equal(run({action:'baseEvaluate',expression:'Neg(1)',base:'DEC',signed:true}).text, '−1');
+  assert.equal(run({action:'baseEvaluate',expression:'Neg(1)',base:'DEC',signed:false}).text, '4294967295');
+  assert.equal(run({action:'baseEvaluate',expression:'b1010 + hA',base:'DEC'}).text, '20');
+  assert.equal(run({action:'baseEvaluate',expression:'o77',base:'DEC'}).text, '63');
+  assert.equal(run({action:'baseEvaluate',expression:'Ans + 1',base:'DEC',variables:{Ans:{re:9,im:0}}}).text, '10');
+});
+test('Multi-statement execution (:), variable assignment, and display pause (◢)', () => {
+  const r1 = run({action:'evaluate', expression:'3→A : A×4→B : B+1'});
+  assert.equal(r1.text, '13');
+  assert.equal(r1.variables.A.re, 3);
+  assert.equal(r1.variables.B.re, 12);
+  assert.equal(r1.variables.Ans.re, 13);
+
+  const r2 = run({action:'evaluate', expression:'A=7 : B=3 : A*B'});
+  assert.equal(r2.text, '21');
+  assert.equal(r2.variables.A.re, 7);
+  assert.equal(r2.variables.B.re, 3);
+
+  // createProgram generator with ◢
+  const prog = engine.createProgram('10→A : A+5◢ : A×2', {}, 'DEG');
+  const step1 = prog.next();
+  assert.equal(step1.done, false);
+  assert.equal(step1.value.type, 'display');
+  assert.equal(step1.value.text, '15');
+  assert.equal(step1.value.variables.A.re, 10);
+  const step2 = prog.next();
+  assert.equal(step2.done, true);
+  assert.equal(step2.value.output.at(-1), '20');
+});
+

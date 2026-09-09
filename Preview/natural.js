@@ -20,26 +20,28 @@
   const plainMarkup=s=>esc(s).replace(/pi/g,'π').replace(/\*/g,'×').replace(/-/g,'−');
   const fracHTML=(n,d)=>`<span class="math-frac"><span>${n}</span><span>${d}</span></span>`;
   const numericHTML=s=>{const m=/^(.+)×10\^([+-]?\d+)$/.exec(s);return m?`${esc(m[1])}×<span class="math-power"><span>10</span><sup>${plainMarkup(m[2])}</sup></span>`:esc(s);};
-  const rootHTML=(s,index='')=>`<span class="math-root">${index?`<sup class="root-index">${index}</sup>`:''}<span class="radical">√</span><span class="radicand">${s}</span></span>`;
+  const rootHTML=(s,index='')=>`<span class="math-root">${index?`<sup class="root-index">${index}</sup>`:''}<span class="radical"><svg viewBox="0 0 10 100" preserveAspectRatio="none"><path d="M 0,55 L 2.5,50 L 5.5,95 L 9.5,0 L 10,0" vector-effect="non-scaling-stroke"/></svg></span><span class="radicand">${s}</span></span>`;
   class Editor {
     constructor(tree){this.tree=tree?JSON.parse(JSON.stringify(tree)):[];this.seq=this.tree;this.pos=this.tree.length;}
     clear(){this.tree=[];this.seq=this.tree;this.pos=0;}
     get source(){return source(this.tree);}
     snapshot(){return JSON.parse(JSON.stringify(this.tree));}
     restore(tree){this.tree=JSON.parse(JSON.stringify(tree));this.seq=this.tree;this.pos=this.tree.length;}
+    toStart(){this.seq=this.tree;this.pos=0;}
+    toEnd(){this.seq=this.tree;this.pos=this.tree.length;}
     load(s){
       this.clear();
-      const tokens=s.match(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[a-zA-Z]+(?=\()|MatAns|Mat[A-F]|Ans|pi|[^\s]/g)||[];let p=0;
+      const tokens=s.match(/(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[a-zA-Z]+(?=\()|and|or|xor|xnor|MatAns|Mat[A-F]|Ans|pi|[^\s]/g)||[];let p=0;
       const chars=s=>(s.match(/MatAns|Mat[A-F]|Ans|pi|./gs)||[]).map(text);
       function expr(min=0){
         const t=tokens[p++];let a;
         if(t==='('){a=[{type:'group',body:expr()}];if(tokens[p++]!==')')throw Error('syntax');}
-        else if(t==='−'||t==='-'||t==='+'){a=[text(t),...expr(35)];}
+        else if(t==='−'||t==='-'||t==='+'||t==='∠'){a=[text(t),...expr(30)];}
         else if(/^[A-Za-z]+$/.test(t||'')&&tokens[p]==='('){p++;const body=expr();if(tokens[p++]!==')')throw Error('syntax');a=[t==='sqrt'?{type:'root',body}:t==='cbrt'?{type:'nthroot',index:[text('3')],body}:{type:'function',name:t,body}];}
-        else if(t&&!/^[)×*/÷^=,→]$/.test(t))a=chars(t);else throw Error('syntax');
+        else if(t&&!/^[)×*/÷^=,→∠:◢]$/.test(t)&&!/^(and|or|xor|xnor)$/.test(t))a=chars(t);else throw Error('syntax');
         while(p<tokens.length){
           const t=tokens[p];if((t==='!'||t==='%')&&50>=min){p++;a.push(text(t));continue;}
-          const implicit=t==='('||/^[\dA-Za-z.]$/.test(t)||t==='pi'||t==='Ans'||/^[A-Za-z]+$/.test(t),op=implicit?'':t,bp=implicit?20:({'=':5,'→':4,',':3,'+':10,'−':10,'-':10,'×':20,'*':20,'÷':20,'/':20,'^':40})[op];
+          const implicit=t==='('||/^[\dA-Za-z.]$/.test(t)||t==='pi'||t==='Ans'||/^[A-Za-z]+$/.test(t),op=implicit?'':t,bp=implicit?20:({':':1,'◢':1,'=':5,'→':4,',':3,'or':6,'xor':6,'xnor':6,'and':8,'+':10,'−':10,'-':10,'×':20,'*':20,'÷':20,'/':20,'∠':30,'^':40})[op];
           if(bp===undefined||bp<min)break;if(!implicit)p++;const b=expr(op==='^'?bp:bp+1);
           if(op==='^')a=[{type:'power',base:a,exp:b}];else if(op==='/')a=[{type:'fraction',num:a,den:b}];else a=a.concat(op?[text(op)]:[],b);
         }
@@ -72,7 +74,7 @@
       if(!this.pos)return [];
       let begin=this.pos-1,last=this.seq[begin];
       if(last.type==='text'){
-        if(/^[+−\-×÷*/=,→]$/.test(last.text))return [];
+        if(/^[+−\-×÷*/=,→:◢?]$/.test(last.text))return [];
         if(/^[\d.]$/.test(last.text)){while(begin>0&&this.seq[begin-1].type==='text'&&/^[\d.]$/.test(this.seq[begin-1].text))begin--;}
       }
       const nodes=this.seq.splice(begin,this.pos-begin);this.pos=begin;return nodes;
@@ -83,9 +85,14 @@
       this.seq=mixed?(atom.length?node.num:node.whole):(atom.length?node.den:node.num);this.pos=0;
     }
     power(exponent){
-      const base=this.takeAtom();if(!base.length)throw Error('Syntax ERROR: enter a base first');
-      const node={type:'power',base,exp:exponent?Array.from(exponent).map(text):[]};this.seq.splice(this.pos++,0,node);
-      if(!exponent){this.seq=node.exp;this.pos=0;}
+      const base=this.takeAtom();
+      const node={type:'power',base,exp:exponent?Array.from(exponent).map(text):[]};
+      this.seq.splice(this.pos++,0,node);
+      if(base.length){
+        if(!exponent){this.seq=node.exp;this.pos=0;}
+      }else{
+        this.seq=node.base;this.pos=0;
+      }
     }
     template(type,name){
       const node=type==='nthroot'?{type,index:[],body:[]}:{type,body:[]};if(name)node.name=name;
@@ -97,9 +104,33 @@
         let current=this.seq;
         const owners=this.owners();
         while(owners.has(current)){
-          const o=owners.get(current),order=fields(o.node),i=order.indexOf(o.field),j=i+(direction==='down'?1:-1);
-          if(j>=0&&j<order.length){this.seq=o.node[order[j]];this.pos=Math.min(this.pos,this.seq.length);return true;}
+          const o=owners.get(current);
+          if(o.node.type==='power'){
+            if(direction==='up'&&o.field==='base'){this.seq=o.node.exp;this.pos=Math.min(this.pos,this.seq.length);return true;}
+            if(direction==='down'&&o.field==='exp'){this.seq=o.node.base;this.pos=Math.min(this.pos,this.seq.length);return true;}
+          }else{
+            const order=fields(o.node),i=order.indexOf(o.field),j=i+(direction==='down'?1:-1);
+            if(j>=0&&j<order.length){this.seq=o.node[order[j]];this.pos=Math.min(this.pos,this.seq.length);return true;}
+          }
           current=o.parent;
+        }
+        if(direction==='down'){
+          const child=this.seq.slice(this.pos).find(n=>fields(n).length>1)||this.seq.slice(0,this.pos).reverse().find(n=>fields(n).length>1);
+          if(child){
+            const order=fields(child);
+            const target=child.type==='power'?'base':order[order.length-1];
+            this.seq=child[target];
+            this.pos=0;
+            return true;
+          }
+        }
+        if(direction==='up'){
+          const child=this.seq.slice(0,this.pos).reverse().find(n=>n.type==='power')||this.seq.slice(this.pos).find(n=>n.type==='power');
+          if(child){
+            this.seq=child.exp;
+            this.pos=0;
+            return true;
+          }
         }
         return false;
       }

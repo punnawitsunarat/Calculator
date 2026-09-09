@@ -24,9 +24,38 @@ test('fraction numerator can contain expression and vertical editing preserves s
 test('sqrt needs no trailing closing parenthesis and simplifies square factors',()=>{
  const m=make();press(m,'sqrt','8','exe');assert.equal(m.result,'2√2');assert.match(m.resultHTML,/math-root/);press(m,'sd');near(Number(m.result),Math.sqrt(8));
 });
+test('sqrt containing fraction renders radical svg and evaluates exactly',()=>{
+ const m=make();
+ press(m,'sqrt','fraction','1','2','0','0','down','3','exe');
+ assert.equal(m.error,null);
+ assert.equal(m.result,'20');
+ assert.match(m.editor.html(false),/<svg/);
+ assert.match(m.editor.html(false),/math-frac/);
+
+ const k=make();
+ press(k,'sqrt','fraction','5','down','2','exe');
+ assert.equal(k.error,null);
+ assert.equal(k.result,'√10/2');
+ assert.match(k.resultHTML,/<span class="math-frac">/);
+ assert.match(k.resultHTML,/<span class="math-root">/);
+ assert.match(k.resultHTML,/<svg/);
+});
 test('nested roots and powers can be evaluated before leaving the last slot',()=>{
  const m=make();press(m,'sqrt','sqrt','1','6','exe');near(m.value.re,2);
  const n=make();press(n,'2','power','3','right','plus','1','exe');assert.equal(n.result,'9');
+});
+test('power with empty base creates empty base and exp slots without error',()=>{
+ const m=make();
+ press(m,'power');
+ assert.equal(m.error,null);
+ assert.match(m.editor.html(true),/math-power/);
+ assert.equal((m.editor.html(true).match(/math-empty/g)||[]).length,2);
+ press(m,'2','up','3','exe');
+ assert.equal(m.error,null);
+ assert.equal(m.result,'8');
+ const n=make();
+ press(n,'power','del');
+ assert.equal(n.expression,'');
 });
 test('square and general power preserve following operations',()=>{
  const m=make();press(m,'5','square','plus','1','exe');assert.equal(m.result,'26');assert.match(m.editor.html(false),/math-power/);
@@ -101,4 +130,60 @@ test('special trig angles get algebraic output in the configured unit',()=>{
 });
 test('typing after a SOLVE result begins a new calculation',()=>{
  const m=make();m.expression='X+1=3';press(m,'solve','solve','7','exe');assert.equal(m.assignment,null);assert.equal(m.result,'7');
+});
+
+test('Replay navigation: left/right on result enters editing at end/start; up/down navigates history',()=>{
+  const m=make();
+  press(m,'1','plus','2','exe');
+  assert.equal(m.done,true);
+  assert.equal(m.result,'3');
+
+  // Pressing left on result jumps to the end for editing
+  press(m,'left');
+  assert.equal(m.done,false);
+  assert.equal(m.editor.pos,m.editor.tree.length);
+
+  // Re-calculate and test right arrow jumps to the beginning
+  press(m,'exe');
+  assert.equal(m.done,true);
+  press(m,'right');
+  assert.equal(m.done,false);
+  assert.equal(m.editor.pos,0);
+
+  // DEL on result enters editing from the end and removes last token
+  press(m,'exe');
+  assert.equal(m.done,true);
+  press(m,'del');
+  assert.equal(m.done,false);
+  assert.equal(m.expression,'1+');
+
+  // History scrolling across multiple calculations
+  press(m,'ac');
+  press(m,'2','multiply','3','exe');
+  press(m,'4','plus','5','exe');
+  assert.equal(m.result,'9');
+
+  // First Up recalls history[2] (4+5=9)
+  press(m,'up');
+  assert.equal(m.expression,'4+5');
+  assert.equal(m.result,'9');
+
+  // Up again recalls history[1] (2×3=6)
+  press(m,'up');
+  assert.equal(m.expression,'2×3');
+  assert.equal(m.result,'6');
+
+  // Up again recalls earliest calculation history[0] (1+2)
+  press(m,'up');
+  assert.equal(m.expression,'1+2');
+
+  // Down scrolls forward to 2×3=6
+  press(m,'down');
+  assert.equal(m.expression,'2×3');
+  assert.equal(m.result,'6');
+
+  // Down again scrolls forward to latest (4+5=9)
+  press(m,'down');
+  assert.equal(m.expression,'4+5');
+  assert.equal(m.result,'9');
 });
