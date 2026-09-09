@@ -16,4 +16,4 @@ fs.writeFileSync(path.join(destination, 'engine.js'), engine);
 const worker = fs.readFileSync(path.join(__dirname, 'sw.js'), 'utf8');
 hash.update(worker);
 fs.writeFileSync(path.join(destination, 'sw.js'), worker.replace('cal-shell-v1', 'cal-shell-'+hash.digest('hex').slice(0,16)));
-console.log('Static PWA ready: '+destination+' (host at the root of an HTTPS site)');
+console.log('Static PWA ready: '+destination+' (supports HTTPS root or repository subdirectory)');

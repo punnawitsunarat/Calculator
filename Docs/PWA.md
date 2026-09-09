@@ -1,7 +1,7 @@
 # ติดตั้ง CaL บนหน้าจอโฮม iPhone
 
 1. รัน `node Preview/build.cjs` ได้ชุดเว็บ static ใน `dist/`
-2. อัปโหลดไฟล์ภายใน dist ไปที่ root ของเว็บ HTTPS ไม่ต้องใช้ Node server บนโฮสต์
+2. อัปโหลดไฟล์ภายใน dist ไปที่ root หรือ subdirectory ของเว็บ HTTPS ไม่ต้องใช้ Node server บนโฮสต์
 3. เปิด URL HTTPS จาก Safari บน iPhone รอให้หน้าและไฟล์ออฟไลน์โหลดเสร็จ
 4. แตะแชร์ → เพิ่มไปยังหน้าจอโฮม → เปิด “เปิดเป็นเว็บแอป” หากมีตัวเลือกนี้ → เพิ่ม
 5. เปิดจากไอคอน CaL แล้วทดสอบเปิดอีกครั้งโดยปิดอินเทอร์เน็ต
@@ -17,3 +17,8 @@ localhost/127.0.0.1 ของคอมไม่ใช่ URL สำหรับ 
 ตรวจ bundle และ offline handler อัตโนมัติด้วย `node --test Tests/pwa.test.cjs` ยังต้องตรวจการติดตั้งและออฟไลน์บน Safari/iPhone จริง
 
 คู่มือ Apple: https://support.apple.com/en-gb/guide/iphone/iphea86e5236/ios
+
+
+## GitHub Pages
+
+Workflow `.github/workflows/pages.yml` build และทดสอบก่อนเผยแพร่ dist เมื่อ push main ตั้งค่า Settings → Pages → Source เป็น GitHub Actions เว็บรองรับเส้นทาง `/Calculator/` แล้ว รวม manifest, ไอคอน และ offline cache แยกจากเว็บอื่นบน origin เดียวกัน
