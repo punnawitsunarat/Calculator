@@ -89,8 +89,9 @@
       super.refreshResult();
       if(this.eng){this.result=this.numericText();this.resultHTML=null;}
     }
-    clear(){super.clear();this.screen=null;this.running=null;this.dmsDisplay=false;}
+    clear(){this.completedFormula=null;super.clear();this.screen=null;this.running=null;this.dmsDisplay=false;}
     insert(s){
+      if(this.done)this.completedFormula=null;
       if(this.screen?.type==='program'){this.programInsert(s);return;}
       if(this.screen?.type==='progName'&&this.screen.step==='name'){
         const sn=this.screen;
@@ -111,32 +112,27 @@
     real(source){const v=this.dispatch({action:'evaluate',expression:source}).value;if(v.im||!Number.isFinite(v.re))throw Error('Math ERROR: real value required');return v.re;}
     integer(n,min,max){if(!Number.isInteger(n)||n<min||n>max)throw Error(`Range ERROR: ${min}…${max}`);return n;}
     grid(title,data,labels,finish,back=null){this.menu=null;this.screen={type:'grid',title,data,labels,index:0,entry:new this.natural.Editor(),finish,back};}
-    chooseProgram(action, backAction=null){
-      const parent=backAction || (()=>this.openTool('program'));
-      if(!this.programs.length){this.output('Prog List',['No programs'],parent);return;}
+    editProgram(p,back){
+      let entry=null;if(p.mode==='Formula'){entry=new this.natural.Editor();if(p.source)entry.load(p.source);}
+      this.menu=null;this.screen={type:'program',title:p.name,program:p,entry,cursor:p.source.length,selectionEnd:p.source.length,back};
+      this.alpha=false;this.lock=false;
+    }
+    chooseProgram(action,backAction=null,group=this.programGroup||'Prog',selected=this.selectedProgram){
+      const parent=backAction||(()=>this.openTool('program'));
+      this.programGroup=group;
+      const files=this.programs.filter(p=>(p.mode==='Formula')===(group==='Fmla'));
+      const listBack=()=>this.chooseProgram(action,parent,group,this.selectedProgram);
       this.menu=null;
-      this.screen={
-        type:'list',
-        title:'Prog '+action,
-        lines:this.programs.map((p,i)=>`${i+1}:${p.name}`),
-        index:0,
-        back:parent,
-        programList:true,
-        action,
+      this.screen={type:'list',title:group+' '+(action==='RUN'?'List':action==='EDIT'?'Edit':'Delete'),
+        lines:files.map((p,i)=>`${i+1}:${p.name}${p.mode==='BASE-N'?' BN':p.mode==='Formula'?' FM':''}`),
+        index:Math.max(0,files.findIndex(p=>p.name===selected)),back:parent,programList:true,action,group,
+        switchGroup:()=>this.chooseProgram(action,parent,group==='Prog'?'Fmla':'Prog'),
         select:i=>{
-          const p=this.programs[i];
-          if(action==='EDIT'){
-            let entry=null;
-            if(p.mode==='Formula'){
-              entry=new this.natural.Editor();
-              if(p.source)try{entry.load(p.source);}catch{}
-            }
-            this.screen={type:'program',title:p.name,program:p,entry,cursor:p.source.length,selectionEnd:p.source.length,back:parent};
-          }
-          else if(action==='DELETE')this.confirm('Delete '+p.name+'?\nEXE:Yes EXIT:No',()=>{this.programs.splice(i,1);if(this.programs.length)this.chooseProgram(action,parent);else this.output('Prog List',['No programs'],parent);});
+          const p=files[i];if(!p)return;this.selectedProgram=p.name;
+          if(action==='EDIT')this.editProgram(p,listBack);
+          else if(action==='DELETE')this.confirm('Delete '+p.name+'?\nEXE:Yes EXIT:No',()=>{this.programs.splice(this.programs.indexOf(p),1);listBack();});
           else this.runProgram(p);
-        }
-      };
+        }};
     }
     chooseFormula(backAction=null){
       const parent=backAction || (()=>this.openMenu('formulaChoice'));
@@ -193,7 +189,9 @@
       }
       return (n >>> 0).toString(b).toUpperCase();
     }
+    finishCalc(){const a=this.assignment;super.finishCalc();this.completedFormula=a?.formulaName?{name:a.formulaName,mode:'Formula',source:a.source}:null;}
     calculate(){
+      if(this.done&&this.completedFormula){const p=this.completedFormula;this.completedFormula=null;this.runProgram(p);return;}
       if(this.inputPrompt){
         let enteredVal;
         if(this.inputPrompt.entry.source){
@@ -405,6 +403,7 @@
       if(s.equationResult){if(id==='mode'||id==='function')return false;if(id==='exe'){if(s.index===s.lines.length-1)s.back();else s.index++;}else if(id==='up'||id==='down')s.index=Math.max(0,Math.min(s.lines.length-1,s.index+(id==='down'?1:-1)));return true;}
       if(s.type==='confirm'){if(id==='exe')s.run();return true;}
       if(s.type==='programPause'){if(id==='exe')this.resumeProgram();return true;}
+      if(s.programList&&s.switchGroup&&(id==='left'||id==='right')){s.switchGroup();return true;}
       if(s.matrixList){if(id==='right'){this.editMatrix(String.fromCharCode(65+s.index),true);return true;}if(id==='del'){const name=String.fromCharCode(65+s.index);this.confirm('Delete Mat '+name,()=>{delete this.matrices[name];this.matrixList();});return true;}}
       if(s.type==='progName'){
         if(id==='exit'){this.alpha=false;this.screen=null;if(s.back)s.back();return true;}
@@ -413,7 +412,7 @@
           if(id==='exe'){
             const name=s.name.trim();
             if(!name)return true;
-            if(this.programs.some(p=>p.name===name)){this.error='Already Exists';return true;}
+            if(this.programs.some(p=>p.name===name)){const p=this.programs.find(p=>p.name===name);this.selectedProgram=name;this.editProgram(p,()=>this.chooseProgram('EDIT',null,p.mode==='Formula'?'Fmla':'Prog',name));return true;}
             if(!/^[A-Za-z0-9_ -]{1,12}$/.test(name)){this.error='Name ERROR';return true;}
             s.step='mode';s.title='Select Mode';s.modeIndex=0;this.alpha=false;return true;
           }
@@ -448,12 +447,14 @@
           if(progMode==='Formula'){
             entry=new this.natural.Editor();
           }
-          this.screen={type:'program',title:program.name,program,entry,cursor:0,selectionEnd:0,back:()=>this.openTool('program')};
+          this.screen={type:'program',title:program.name,program,entry,cursor:0,selectionEnd:0,back:()=>this.chooseProgram('EDIT',null,progMode==='Formula'?'Fmla':'Prog',program.name)};
+          this.selectedProgram=program.name;this.programGroup=progMode==='Formula'?'Fmla':'Prog';
           return true;
         }
         return true;
       }
       if(s.type==='program'){
+        if(this.shift&&(id==='up'||id==='down')){if(s.entry){if(id==='up')s.entry.toStart();else s.entry.toEnd();}else{s.cursor=id==='up'?0:s.program.source.length;s.selectionEnd=s.cursor;}this.shift=false;return true;}
         if(id==='function'){
           if(s.program.mode==='Formula')this.openMenu('functionsFormula');
           else if(s.program.mode==='BASE-N')this.openMenu('functionsBase');
@@ -579,7 +580,7 @@
       if(s.stat&&(id==='calc'||id==='function')){this.statRows=s.data.slice(0,s.committed).map(r=>r.slice());if(id==='calc')this.statResults();else this.openMenu('stat');return true;}
       return false;
     }
-    press(key){try{const id=key[0];if(this.on&&!this.error&&!this.alpha&&id==='fmla'&&!this.shift){this.screen=null;this.assignment=null;this.openMenu('formulaChoice');return;}if(this.on&&!this.error&&!this.menu&&!this.alpha&&id==='dms'){this.shift=false;if(this.done&&!this.screen&&!this.assignment){this.dmsDisplay=!this.dmsDisplay;this.result=this.dmsDisplay?this.dmsText(this.value):this.numericText();this.resultHTML=null;}else{const tail=this.active.source.split(/[+−×÷=,]/).at(-1);const marker=/°[^′]*′[^″]*$/.test(tail)?'″':/°[^′]*$/.test(tail)?'′':'°';this.insert(marker);}return;}if(this.on&&!this.menu&&!this.screen&&!this.error&&id==='file'&&!this.shift&&!this.alpha){this.chooseProgram('RUN',()=>{this.screen=null;});return;}if(this.error&&id==='exit'){this.error=null;return;}if(this.screen&&id==='ac'&&!this.shift){if(this.screen.entry){if(this.screen.equation&&!this.screen.entry.source){const s=this.screen,c=s.labels.length;s.data[Math.floor(s.index/c)][s.index%c]=0;}this.screen.entry.clear();this.error=null;return;}if(this.screen.type==='program'){const at=this.screen.cursor??this.screen.program.source.length;const lineStart=this.screen.program.source.lastIndexOf('\n',at-1)+1;const lineEnd=this.screen.program.source.indexOf('\n',at);const end=lineEnd<0?this.screen.program.source.length:lineEnd;this.screen.cursor=lineStart;this.screen.selectionEnd=end;this.programInsert('');return;}this.screen=null;}if(this.on&&!this.error&&!this.menu&&!this.screen&&this.mode==='BASE-N'){if(!this.shift&&!this.alpha){if(id==='function'){this.openMenu('baseLogic');return;}const baseMap={square:'DEC',log:'HEX',ln:'BIN',power:'OCT'};if(baseMap[id]){this.base=baseMap[id];this.refreshResult();return;}if(this.base==='HEX'){const hexMap={i:'A',fraction:'B',dms:'C',sin:'D',cos:'E',tan:'F'};if(hexMap[id]){this.insert(hexMap[id]);return;}}}}if(this.on&&!this.error&&!this.menu&&this.screen&&!['shift','alpha'].includes(id)&&!(this.shift&&id==='mode')&&this.screenKey(key))return;const action=super.press(key);if(action?.tool)this.openTool(action.tool,action.operation);return;}catch(e){this.error=e.message||'Math ERROR';}}
+    press(key){try{const id=key[0];if(this.on&&!this.error&&!this.alpha&&id==='fmla'&&!this.shift){if(this.screen?.type==='program')return;this.screen=null;this.assignment=null;this.openMenu('formulaChoice');return;}if(this.on&&!this.error&&!this.menu&&!this.alpha&&id==='dms'){this.shift=false;if(this.done&&!this.screen&&!this.assignment){this.dmsDisplay=!this.dmsDisplay;this.result=this.dmsDisplay?this.dmsText(this.value):this.numericText();this.resultHTML=null;}else{const tail=this.active.source.split(/[+−×÷=,]/).at(-1);const marker=/°[^′]*′[^″]*$/.test(tail)?'″':/°[^′]*$/.test(tail)?'′':'°';this.insert(marker);}return;}if(this.on&&!this.menu&&!this.screen&&!this.error&&id==='file'&&!this.shift&&!this.alpha){this.chooseProgram('RUN',()=>{this.screen=null;});return;}if(this.error&&id==='exit'){this.error=null;return;}if(this.screen&&id==='ac'&&!this.shift){if(this.screen.entry){if(this.screen.equation&&!this.screen.entry.source){const s=this.screen,c=s.labels.length;s.data[Math.floor(s.index/c)][s.index%c]=0;}this.screen.entry.clear();this.error=null;return;}if(this.screen.type==='program'){const at=this.screen.cursor??this.screen.program.source.length;const lineStart=this.screen.program.source.lastIndexOf('\n',at-1)+1;const lineEnd=this.screen.program.source.indexOf('\n',at);const end=lineEnd<0?this.screen.program.source.length:lineEnd;this.screen.cursor=lineStart;this.screen.selectionEnd=end;this.programInsert('');return;}this.screen=null;}if(this.on&&!this.error&&!this.menu&&!this.screen&&this.mode==='BASE-N'){if(!this.shift&&!this.alpha){if(id==='function'){this.openMenu('baseLogic');return;}const baseMap={square:'DEC',log:'HEX',ln:'BIN',power:'OCT'};if(baseMap[id]){this.base=baseMap[id];this.refreshResult();return;}if(this.base==='HEX'){const hexMap={i:'A',fraction:'B',dms:'C',sin:'D',cos:'E',tan:'F'};if(hexMap[id]){this.insert(hexMap[id]);return;}}}}if(this.on&&!this.error&&!this.menu&&this.screen&&!['shift','alpha'].includes(id)&&!(this.shift&&id==='mode')&&this.screenKey(key))return;const action=super.press(key);if(action?.tool)this.openTool(action.tool,action.operation);return;}catch(e){this.error=e.message||'Math ERROR';}}
   }
   root.CalLCD={Machine};if(typeof module!=='undefined')module.exports=root.CalLCD;
 })(typeof globalThis!=='undefined'?globalThis:this);

@@ -129,7 +129,7 @@ function renderWorkflow(lcd,menuOpen){
       return `<div class="prog-list-row ${isSel?'selected':''}"><span class="prog-list-cursor">${isSel?'▶':' '}</span><span>${esc(line)}</span></div>`;
     }).join('');
     const posHint=(s.lines.length?(s.index+1)+'/'+s.lines.length:'0/0');
-    host.innerHTML=`<div class="workflow-title">${esc(s.title)}</div><div class="prog-list-content">${linesHtml}</div><div class="assign-hint">▲▼ ${posHint}  EXE:${s.action==='DELETE'?'Del':s.action==='EDIT'?'Edit':'Run'}  EXIT:Back</div>`;
+    host.innerHTML=`<div class="workflow-title">${esc(s.title)}</div><div class="prog-list-content">${linesHtml}</div><div class="assign-hint">${s.switchGroup?'◀▶ ':''}▲▼ ${posHint}  EXE:${s.action==='DELETE'?'Del':s.action==='EDIT'?'Edit':'Run'}  EXIT:Back</div>`;
     return;
   }
   if(s.type==='list'&&s.matrixList){

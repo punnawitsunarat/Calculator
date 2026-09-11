@@ -154,9 +154,9 @@ test('Program Mode 1:NEW authentic prompt, name entry, mode select and editor en
   assert.ok(m.programs.some(p => p.name === 'A1'));
 
   // Test duplicate name validation
-  press(m, 'exit', '1'); // Back to menu, press 1:NEW again
+  press(m, 'exit', 'exit', '1'); // Back to menu, press 1:NEW again
   press(m, 'i', 'alpha', '1', 'exe'); // Type 'A1' and press EXE
-  assert.equal(m.error, 'Already Exists');
+  assert.equal(m.error, null);assert.equal(m.screen.program.name,'A1');
 });
 
 test('Program Mode 3:Formula selection, navigation, and execution via CALC', () => {
@@ -186,11 +186,11 @@ test('Program Mode 3:Formula selection, navigation, and execution via CALC', () 
   // Exit back to menu
   press(m, 'exit');
 
-  // Run CYL from Prog RUN
-  press(m, '2'); // 2:RUN
+  // Return from Fmla Edit, then RUN.
+  press(m, 'exit','2'); // 2:RUN
   assert.equal(m.screen.type, 'list');
   // Select CYL (last item in programs)
-  const cylIndex = m.programs.findIndex(p => p.name === 'CYL');
+  const cylIndex = m.programs.filter(p=>p.mode==='Formula').findIndex(p => p.name === 'CYL');
   press(m, String(cylIndex + 1));
 
   // Automatically enters CALC mode for formula
@@ -302,7 +302,7 @@ test('Prog RUN and built-in HERON program execution', () => {
   press(m, 'file');
   assert.equal(m.screen.type, 'list');
   assert.equal(m.screen.programList, true);
-  assert.equal(m.screen.title, 'Prog RUN');
+  assert.equal(m.screen.title, 'Prog List');
 
   // Select Item 2: HERON
   press(m, '2');
@@ -338,7 +338,7 @@ test('Program Mode 4:DELETE submenus (One File and All Files)', () => {
   // 1:One File
   press(m, '1');
   assert.equal(m.screen.type, 'list');
-  assert.equal(m.screen.title, 'Prog DELETE');
+  assert.equal(m.screen.title, 'Prog Delete');
   assert.equal(m.screen.programList, true);
 
   // Select 1 (deletes first file)
@@ -414,7 +414,7 @@ test('Program Formula mode uses Natural Display editor instead of raw strings', 
 
   // Press EXIT saves program source
   press(m, 'exit');
-  assert.equal(m.screen, null);
+  assert.equal(m.screen.title, 'Fmla Edit');
   const prog = m.programs.find(p => p.name === 'TESTF');
   assert.ok(prog);
   assert.equal(prog.mode, 'Formula');
@@ -447,15 +447,16 @@ test('Program COMP mode inserts authentic Casio mathematical symbols and execute
   m.screen.program.source = '√(16)+³√(27)+2²';
   // Press EXIT to save and return to Prog menu
   press(m, 'exit');
-  assert.equal(m.menu.kind, 'program');
+  assert.equal(m.screen.title, 'Prog Edit');
+  press(m,'exit');
 
   // 2:RUN from Prog menu
   press(m, '2');
   assert.equal(m.screen.type, 'list');
-  assert.equal(m.screen.title, 'Prog RUN');
+  assert.equal(m.screen.title, 'Prog List');
 
   // Select TESTC (index 4)
-  const testcIdx = m.programs.findIndex(p => p.name === 'TESTC') + 1;
+  const testcIdx = m.programs.filter(p=>p.mode!=='Formula').findIndex(p => p.name === 'TESTC') + 1;
   press(m, String(testcIdx));
 
   // Should output √(16) [4] + ³√(27) [3] + 2² [4] = 11

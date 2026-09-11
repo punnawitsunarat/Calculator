@@ -34,7 +34,7 @@ test('SD stores rows and excludes uncommitted empty row',()=>{
  const m=make();press(m,'mode','3','1','exe','2','exe','3','exe','calc');assert.equal(m.error,null);assert.ok(m.screen.lines.includes('n=3'));assert.ok(m.screen.lines.includes('mean=2'));
 });
 test('program sample runs and edits entirely within LCD',()=>{
- const m=make();press(m,'mode','5','2','exe');assert.equal(m.error,null);assert.ok(m.screen.lines.includes('1003'));press(m,'exit','exit','3','exe');assert.equal(m.screen.type,'program');press(m,'exe','1');assert.ok(m.screen.program.source.endsWith('\n1'));press(m,'exit');assert.equal(m.menu.kind,'program');assert.ok(new Machine(engine,natural,m.snapshot()).programs[0].source.endsWith('\n1'));
+ const m=make();press(m,'mode','5','2','exe');assert.equal(m.error,null);assert.ok(m.screen.lines.includes('1003'));press(m,'exit','exit','3','exe');assert.equal(m.screen.type,'program');press(m,'exe','1');assert.ok(m.screen.program.source.endsWith('\n1'));press(m,'exit');assert.equal(m.screen.title,'Prog Edit');assert.ok(new Machine(engine,natural,m.snapshot()).programs[0].source.endsWith('\n1'));
 });
 test('calculus and new MATH operations return finite results',()=>{
  const m=make();press(m,'function','1','3','exe','2','exe');assert.equal(m.error,null);near(Number(m.screen.lines[0]),2);
@@ -397,7 +397,7 @@ test('Step 8: Program Mode (MODE 5 / FILE) flow, subprograms, logic operators an
   // 1. FILE key opens Prog RUN directly
   press(m, 'file');
   assert.equal(m.screen.type, 'list');
-  assert.equal(m.screen.title, 'Prog RUN');
+  assert.equal(m.screen.title, 'Prog List');
 
   // Numeric selection '1' selects FOR-LOOP and runs it
   press(m, '1');
