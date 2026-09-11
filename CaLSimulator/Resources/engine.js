@@ -106,7 +106,7 @@
               if(t.v==='nCr'||t.v==='nPr'){if(!Number.isInteger(n)||!Number.isInteger(r)||r<0||n<r||n>1e4)fail('Argument ERROR');let q=1;for(let k=0;k<r;k++)q*=t.v==='nCr'?(n-k)/(k+1):n-k;a=C(q);}
               else if(t.v==='Pol'||t.v==='Rec'){
                 const x=t.v==='Pol'?Math.hypot(n,r):n*Math.cos(r*scale),y=t.v==='Pol'?Math.atan2(r,n)/scale:n*Math.sin(r*scale);
-                variables.X=C(x);variables.Y=C(y);a=C(x);
+                variables.I=C(x);variables.J=C(y);a=C(x);
               }
               else if(t.v==='logab'){if(n<=0||n===1||r<=0)fail('Math ERROR: logarithm domain');a=C(Math.log(r)/Math.log(n));}
               else if(t.v==='RandInt'){if(!Number.isSafeInteger(n)||!Number.isSafeInteger(r)||r<n)fail('Argument ERROR');a=C(n+Math.floor(Math.random()*(r-n+1)));}
@@ -119,7 +119,7 @@
         } else if(t.v==='pi')a=C(Math.PI);
         else if(t.v==='e')a=C(Math.E);
         else if(t.v==='i')a=complex(0,1);
-        else if(/^not$/i.test(t.v))a=C(Number(real(expression(30))===0));
+        else if(/^not$/i.test(t.v))a=C(Number(real(expression(5))===0));
         else if(t.v==='Ans'||/^[A-Z]$/.test(t.v))a=C(variables[t.v]===undefined?0:variables[t.v]);
         else fail('Unknown name: '+t.v);
       } else fail('Syntax ERROR: expected a value');
@@ -225,77 +225,88 @@
     const recurse=(a,b,fa,fm,fb,s,tol,depth)=>{const m=(a+b)/2,l=f((a+m)/2),r=f((m+b)/2),sl=sim(a,m,fa,l,fm),sr=sim(m,b,fm,r,fb),err=sl+sr-s;if(Math.abs(err)<=15*tol)return sl+sr+err/15;if(!depth)fail('Integration did not converge');return recurse(a,m,fa,l,fm,sl,tol/2,depth-1)+recurse(m,b,fm,r,fb,sr,tol/2,depth-1);};
     const fa=f(a),fm=f((a+b)/2),fb=f(b);return recurse(a,b,fa,fm,fb,sim(a,b,fa,fm,fb),1e-8,16);
   }
-  function* programSteps(source,initial={},angle='DEG',inputs={},interactive=false,programs={}) {
-    const vars=Object.assign({},initial),lists={},output=[],stack=[],pairs={},elses={},labels={};
-    const lines=source.replace(/->/g,'→').replace(/◢(?=(?:[^"]*"[^"]*")*[^"]*$)/g,'\n◢\n').split(/\r?\n|:(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(s=>s.trim()).filter(s=>s&&!s.startsWith("'"));
+  function* programSteps(source,initial={},angle='DEG',inputs={},interactive=false,programs={},shared=null,level=0) {
+    if(level>10)fail('Ne ERROR: subroutine nesting exceeds 10 levels');
+    // A subroutine uses the caller's memories, display and execution budget.
+    const state=shared||{vars:Object.assign({},initial),lists:{},output:[],angle,steps:0,stopped:false,lastDisplay:null,pendingDisplay:false};
+    const {vars,lists,output}=state,stack=[],pairs={},elses={},labels={},thens={},lines=[],origins=[];
+    const statements=source.replace(/->/g,'→').replace(/◢(?=(?:[^"]*"[^"]*")*[^"]*$)/g,'\n◢\n').split(/\r?\n|:(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(s=>s.trim()).filter(s=>s&&!s.startsWith("'"));
+    // Then/Else can carry a statement on the same line (manual E-116).
+    statements.forEach((s,i)=>{
+      const append=text=>{lines.push(text);origins.push(i+1);};
+      let match;
+      if((match=/^(Then|Else)\s+(.+)$/i.exec(s))){append(match[1]);append(match[2]);}
+      else if((match=/^(If\s+.+)\s+Then$/i.exec(s))){append(match[1]);append('Then');}
+      else append(s);
+    });
     if(lines.length>4000)fail('Program too long');
-    const emit=s=>{if(output.length>=2000)fail('Output limit exceeded');output.push(s);};
+    const emit=s=>{if(output.length>=2000)fail('Output limit exceeded');output.push(s);state.lastDisplay=s;state.pendingDisplay=false;};
+    const result=z=>{vars.Ans=checked(z);state.lastDisplay=format(z);state.pendingDisplay=true;return z;};
     lines.forEach((s,i)=>{
-      if(/^(If |For |While |Do$)/i.test(s))stack.push({i,type:s.split(/\s/)[0].toLowerCase()});
-      else if(/^Else$/i.test(s)){const top=stack[stack.length-1];if(!top||top.type!=='if'||elses[top.i]!==undefined)fail('Syntax ERROR: Else');elses[top.i]=i;}
+      if(/^(If\s|For\s|While\s|Do$)/i.test(s))stack.push({i,type:s.split(/\s/)[0].toLowerCase()});
+      else if(/^Then$/i.test(s)){const top=stack[stack.length-1];if(!top||top.type!=='if'||thens[top.i]!==undefined||elses[top.i]!==undefined)fail('Syntax ERROR: Then');thens[top.i]=i;}
+      else if(/^Else$/i.test(s)){const top=stack[stack.length-1];if(!top||top.type!=='if'||thens[top.i]===undefined||elses[top.i]!==undefined)fail('Syntax ERROR: Else');elses[top.i]=i;}
       else if(/^(IfEnd|Next|WhileEnd|LpWhile\s.+)$/i.test(s)){
         const top=stack.pop(),type=/^IfEnd/i.test(s)?'if':/^Next/i.test(s)?'for':/^WhileEnd/i.test(s)?'while':'do';
-        if(!top||top.type!==type)fail('Syntax ERROR: unmatched '+s);pairs[top.i]=i;pairs[i]=top.i;if(elses[top.i]!==undefined)pairs[elses[top.i]]=i;
-      } else if(/^Lbl /i.test(s)){const name=s.slice(4).trim();if(labels[name]!==undefined)fail('Duplicate label');labels[name]=i;}
+        if(!top||top.type!==type)fail('Syntax ERROR: unmatched '+s);
+        if(type==='if'&&thens[top.i]===undefined)fail('Syntax ERROR: If requires Then');
+        pairs[top.i]=i;pairs[i]=top.i;if(elses[top.i]!==undefined)pairs[elses[top.i]]=i;
+      } else if(/^Lbl\s/i.test(s)){const name=s.slice(4).trim();if(!/^[0-9A-Z]$/.test(name))fail('Syntax ERROR: label');if(labels[name]!==undefined)fail('Duplicate label');labels[name]=i;}
     });
     if(stack.length)fail('Syntax ERROR: unclosed block');
-    const ev=s=>evaluate(s.replace(/List\s+([A-Z])\[([^\]]+)\]/g,(_,name,index)=>{const i=real(evaluate(index,vars,angle));if(!Number.isInteger(i)||i<1||!lists[name]||i>lists[name].length)fail('List index ERROR');return '('+format(lists[name][i-1])+')';}),vars,angle);
-    const loops={};let pc=0,steps=0;
-    while(pc<lines.length){
-      if(++steps>20000)fail('Execution limit: possible infinite loop');
+    const ev=s=>evaluate(s.replace(/List\s+([A-Z])\[([^\]]+)\]/g,(_,name,index)=>{const i=real(evaluate(index,vars,state.angle));if(!Number.isInteger(i)||i<1||!lists[name]||i>lists[name].length)fail('List index ERROR');return '('+format(lists[name][i-1])+')';}),vars,state.angle);
+    const loops={};let pc=0;
+    const skip=()=>{pc++;if(lines[pc]==='◢')pc++;};
+    while(pc<lines.length&&!state.stopped){
+      if(++state.steps>20000)fail('Execution limit: possible infinite loop');
       let s=lines[pc],m;const here=pc;pc++;
       try {
-        if(/^If /i.test(s)){const cond=s.slice(3).replace(/\s+Then$/i,'');if(!real(ev(cond)))pc=(elses[here]===undefined?pairs[here]:elses[here])+1;}
-        else if(/^Then(?:\s|$)/i.test(s)){s=s.slice(4).trim();if(s){if(/^".*"$/.test(s))emit(s.slice(1,-1));else fail('Put statements after Then on a new line');}}
+        if((m=/^([^"\n]+?)⇒\s*(.+)$/.exec(s))){if(!real(ev(m[1]))){if(lines[pc]==='◢')pc++;continue;}s=m[2].trim();}
+        if(/^If\s/i.test(s)){if(!real(ev(s.slice(3))))pc=(elses[here]===undefined?pairs[here]:elses[here])+1;}
+        else if(/^Then$/i.test(s)){}
         else if(/^Else$/i.test(s))pc=pairs[here]+1;
         else if(/^IfEnd$/i.test(s)){}
-        else if(/^(Deg|Rad|Gra)$/i.test(s))angle=s.toUpperCase();
-        else if(/^ClrText$/i.test(s))output.length=0;
+        else if(/^(Deg|Rad|Gra)$/i.test(s))state.angle=s.toUpperCase();
+        else if(/^(Cls|ClrText)$/i.test(s)){output.length=0;state.lastDisplay=null;state.pendingDisplay=false;}
+        else if(/^ClrMemory$/i.test(s)){for(const name of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')vars[name]=C(0);vars.Ans=C(0);}
         else if((m=/^Prog\s+(?:"([^"]+)"|([A-Za-z0-9_-]+))$/i.exec(s))){
           const subName=m[1]||m[2];
-          const subSource=Array.isArray(programs)?programs.find(p=>p.name===subName)?.source:(programs[subName]||(programs.find&&programs.find(p=>p.name===subName)?.source));
-          if(!subSource)fail('Prog ERROR: '+subName);
-          const subIterator=programSteps(subSource,vars,angle,inputs,interactive,programs);
-          let subStep=subIterator.next();
-          while(!subStep.done){
-            if(interactive){
-              const val=yield subStep.value;
-              subStep=subIterator.next(val);
-            }else{
-              subStep=subIterator.next();
-            }
-          }
-          if(subStep.value?.variables)Object.assign(vars,subStep.value.variables);
-          if(subStep.value?.output)output.push(...subStep.value.output);
+          const sub=Array.isArray(programs)?programs.find(p=>p.name===subName):(Object.prototype.hasOwnProperty.call(programs,subName)?programs[subName]:undefined);
+          const subSource=typeof sub==='string'?sub:sub?.source;
+          if(typeof subSource!=='string')fail('Go ERROR: program '+subName+' not found');
+          if(sub?.mode&&sub.mode!=='COMP')fail('Mode ERROR: subroutine must use COMP mode');
+          yield* programSteps(subSource,vars,state.angle,inputs,interactive,programs,state,level+1);
         }
-        else if((m=/^For\s+(.+?)→([A-Z])\s+To\s+(.+?)(?:\s+Step\s+(.+))?$/i.exec(s))){const start=real(ev(m[1])),end=real(ev(m[3])),step=m[4]?real(ev(m[4])):1;if(!step)fail('Step must not be zero');vars[m[2]]=C(start);loops[here]={variable:m[2],end,step};if(step>0?start>end:start<end)pc=pairs[here]+1;}
+        else if((m=/^For\s+(.+?)→\s*([A-Z])\s+To\s+(.+?)(?:\s+Step\s+(.+))?$/i.exec(s))){const start=real(ev(m[1])),end=real(ev(m[3])),step=m[4]?real(ev(m[4])):1;if(!step)fail('Step must not be zero');vars[m[2]]=C(start);loops[here]={variable:m[2],end,step};if(step>0?start>end:start<end)pc=pairs[here]+1;}
         else if(/^Next$/i.test(s)){const start=pairs[here],loop=loops[start];if(!loop)fail('Next without active For');const v=real(vars[loop.variable])+loop.step;vars[loop.variable]=C(v);if(loop.step>0?v<=loop.end:v>=loop.end)pc=start+1;else delete loops[start];}
         else if(/^While /i.test(s)){if(!real(ev(s.slice(6))))pc=pairs[here]+1;}
         else if(/^WhileEnd$/i.test(s))pc=pairs[here];
         else if(/^Do$/i.test(s)){}
         else if(/^LpWhile /i.test(s)){if(real(ev(s.slice(8))))pc=pairs[here]+1;}
         else if(/^Break$/i.test(s)){let target=-1;for(let i=here-1;i>=0;i--)if(/^(For |While |Do$)/i.test(lines[i])&&pairs[i]>here){target=i;break;}if(target<0)fail('Break outside loop');delete loops[target];pc=pairs[target]+1;}
-        else if(/^Stop$/i.test(s))break;
+        else if(/^Return$/i.test(s))break;
+        else if(/^Stop$/i.test(s)){state.stopped=true;break;}
+        else if((m=/^(Isz|Dsz)\s+([A-Z])$/i.exec(s))){const name=m[2].toUpperCase(),value=checked(add(vars[name]||C(0),/^Isz$/i.test(m[1])?1:-1));vars[name]=value;if(real(value)===0)skip();}
         else if(/^Lbl /i.test(s)){}
-        else if(/^Goto /i.test(s)){const i=labels[s.slice(5).trim()];if(i===undefined)fail('Label not found');pc=i+1;}
+        else if(/^Goto /i.test(s)){const i=labels[s.slice(5).trim()];if(i===undefined)fail('Go ERROR: label not found');pc=i+1;}
         else if((m=/^(.+)→Dim\s+List\s+([A-Z])$/i.exec(s))){const n=real(ev(m[1]));if(!Number.isInteger(n)||n<1||n>1000)fail('List dimension 1…1000');lists[m[2]]=Array.from({length:n},()=>C(0));}
-        else if(s==='◢'){if(interactive)yield {type:'display',text:output.at(-1)||format(vars.Ans||C(0)),variables:vars,statement:here+1};}
-        else if((m=/^(?:"([^"]*)")?\s*\?\s*→\s*([A-Z])$/.exec(s))){
-          const promptText = m[1] !== undefined ? m[1] + '?' : m[2] + '?';
-          const varName = m[2];
+        else if(s==='◢'){const text=state.lastDisplay??format(vars.Ans||C(0));if(state.pendingDisplay)emit(text);if(interactive)yield {type:'display',text,variables:vars,angle:state.angle,statement:origins[here]};}
+        else if((m=/^(?:"([^"]*)")?\s*\?\s*(→\s*)?([A-Z])$/.exec(s))){
+          const promptText=m[1]!==undefined?m[1]+'?':m[3]+'?',varName=m[3],keepCurrent=!m[2],currentValue=vars[varName]||C(0);
           let value = inputs[varName];
-          if(interactive) value = yield {type: 'input', variable: varName, prompt: promptText, variables: vars, statement: here + 1};
+          if(interactive)value=yield {type:'input',variable:varName,prompt:promptText,variables:vars,angle:state.angle,keepCurrent,currentValue,statement:origins[here]};
+          if(keepCurrent&&(value===undefined||value===''))value=currentValue;
           if(value === undefined) fail('Input required: ' + varName + ' (enter it in Inputs)');
-          vars[varName] = C(typeof value === 'string' ? Number(value) || 0 : value);
+          vars[varName]=result(typeof value==='string'?ev(value):checked(C(value)));
         }
         else if((m=/^(.+)→\s*List\s+([A-Z])\[([^\]]+)\]$/i.exec(s))){const i=real(ev(m[3]));if(!Number.isInteger(i)||!lists[m[2]]||i<1||i>lists[m[2]].length)fail('List index ERROR');lists[m[2]][i-1]=ev(m[1]);}
-        else if((m=/^(.+)→\s*([A-Z])$/.exec(s)))vars[m[2]]=ev(m[1]);
+        else if((m=/^(.+)→\s*([A-Z])$/.exec(s)))vars[m[2]]=result(ev(m[1]));
         else if((m=/^([A-Z])\s*=\s*(.+)$/.exec(s))){const val=ev(m[2]);vars[m[1]]=val;vars.Ans=val;emit(format(val));}
         else if(/^".*"$/.test(s))emit(s.slice(1,-1));
         else {const z=ev(s.replace(/◢$/,''));vars.Ans=z;emit(format(z));}
-      } catch(e){fail('Statement '+(here+1)+': '+e.message);}
+      } catch(e){fail('Statement '+origins[here]+': '+e.message);}
     }
-    return {variables:vars,lists,output,steps};
+    return {variables:vars,lists,output,steps:state.steps,angle:state.angle,stopped:state.stopped};
   }
   function runProgram(source,initial={},angle='DEG',inputs={},programs={}){return programSteps(source,initial,angle,inputs,false,programs).next().value;}
   function evaluateBase(source, defaultBase = 10, signed = true, vars = {}) {

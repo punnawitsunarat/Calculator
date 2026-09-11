@@ -1,88 +1,43 @@
-# ขอบเขตความเข้ากันได้
+# ขอบเขตความเข้ากันได้ — เว็บ Calculator
 
-## อัปเดต LCD — 9 กันยายน 2026
+อัปเดต 11 กันยายน 2026 เว็บเป็น simulator ที่เขียนใหม่ ไม่ได้ใช้ ROM หรือ firmware ของ CASIO จึงยังไม่รับรองความเหมือน 100%
 
-- ตัวอย่างเว็บไม่มี dialog หรือ popup แล้ว: TABLE, RECUR, EQN, SD/REG, MATRIX, BASE-N, PROG, ประวัติ และวิธีใช้แสดงใน LCD ใช้ EXE ยืนยันค่า, ลูกศรย้ายช่อง/หน้า และ EXIT ย้อนกลับ
-- SHIFT sin/cos/tan แสดง sin⁻¹/cos⁻¹/tan⁻¹ รองรับ DEG/RAD/GRA, principal values และ exact π สำหรับมุมพิเศษ; ค่านอกโดเมนแสดง Math ERROR โดยยังแก้ไขได้
-- MODE มีสองหน้า; SETUP มีสองหน้าพร้อม ab/c, d/c, ENG, COMPLX, STAT Freq และ Signed/Unsigned
-- FUNCTION หน้า COMP เรียง MATH, COMPLX, PROG, CONST, ANGLE, CLR, STAT, MATRIX; มีหน้า hyperbolic, inverse hyperbolic และ engineering symbols
-- สถิติเลือก Line, Quad, Log, eExp, abExp, Power, Inv; เลือกค่า VAR มาใช้ในนิพจน์ และแสดงผลรวม/การถดถอยได้
-- เมทริกซ์ A–F มีหน้ากำหนดขนาดและป้อนค่าทีละเซลล์; EQN รองรับระบบเชิงเส้น 2–5 ตัวแปรและพหุนามดีกรี 2–3
-- MODE → 5 ใช้ NEW/RUN/EDIT/DELETE โปรแกรม; FILE เปิดรายการรันโดยตรง โปรแกรมที่บันทึกเดิมย้ายเข้าสู่รายการโดยอัตโนมัติ
+## สิ่งที่ใช้งานได้
 
-ข้อแตกต่างที่ยังมี: BASE-N ยังเป็นการแปลงฐาน ไม่ใช่ expression editor พร้อม bitwise แบบเครื่องจริง; LINK ยังไม่จำลอง; โปรแกรมรองรับภาษาเพียง subset และไม่ได้จำลองหน่วยความจำ/เวลาของ firmware; หน้าย่อยและขั้นตอนกรอกบางส่วนใช้รูปแบบที่ปรับให้ทำงานบนเว็บ จึงยังไม่ใช่การจำลองทุกหน้าจอ 100% เมทริกซ์มีรายการปฏิบัติการเพิ่มจากเมนูต้นฉบับ และ FMLA ยังเป็นชุดสูตร 12 สูตร
+- LCD และปุ่มตามภาพอ้างอิง ใช้เมนูบนจอ ไม่มี popup; เว็บติดตั้งเป็น PWA ได้
+- Natural editor: เศษส่วน จำนวนคละ ราก กำลัง และลูกศรแก้ไขช่อง; ผล exact สำหรับเศษส่วน ราก และ π บางกรณี พร้อม S⇔D
+- COMP, ตรีโกณมิติและ inverse, DEG/RAD/GRA, FIX/SCI/NORM, จำนวนเชิงซ้อน, calculus, STO/RCL และ Ans
+- CALC รับค่าตัวแปรบน LCD; SOLVE เลือกตัวแปรและค่าเริ่มต้น พร้อม residual
+- Pol/Rec เก็บผลลัพธ์สองค่าใน I/J ตามคู่มือ E-48 โดยไม่เขียนทับ X/Y
+- DMS ป้อนองศา ลิปดา พิลิปดาทีละส่วน และสลับทศนิยม/DMS พร้อมทดเลข
+- Matrix A–F ขนาดสูงสุด 10×10, แก้ไขเซลล์, MatAns, บวก ลบ คูณ inverse determinant transpose
+- EQN ระบบเชิงเส้น 2–5 ตัวแปร พหุนามดีกรี 2–3; SD/REG พร้อมความถี่และ regression 7 แบบ
+- BASE-N คำนวณและแปลงฐาน 2/8/10/16 พร้อม bitwise และ signed/unsigned 32-bit
+- TABLE และ RECUR แบบที่ระบุในโค้ด; RECUR ยังใช้ A/N และขั้นตอนแบบย่อ
+- FMLA แยก Original/Built-in; สูตรผู้ใช้บันทึกในโปรแกรม Formula ได้ ชุดสูตรสำเร็จมี 48 สูตร ยังไม่ใช่คลังเดิม 128 สูตร
+- CONTRAST ใช้ลูกศรซ้าย/ขวา ทั้งหน้า MODE และ MODE → ▼ → 3 → 1 พร้อมบันทึกค่าข้ามการเปิดเว็บ
 
-CONST เรียง 40 ชื่อตามคู่มือ แต่ค่าตัวเลขใช้ CODATA 2018 / SI พร้อมปัดตาม precision ที่ระบุในโค้ด จึงแตกต่างจากข้อมูล CODATA 2000 ของเครื่องต้นฉบับ แหล่งข้อมูล: https://physics.nist.gov/cuu/Constants/ArchiveASCII/allascii_2018.txt
+## โปรแกรม
 
-การปรับ LCD นี้อยู่ใน Preview เท่านั้น; native SwiftUI ยังใช้หน้าฟอร์มเดิม ต้องปรับและทดสอบบน Mac/iPhone แยกต่างหาก
+รองรับการสร้าง แก้ไข บันทึก รัน และลบไฟล์บน LCD; COMP program รองรับนิพจน์ การกำหนดค่า →, If/Then/Else/IfEnd รวมคำสั่งต่อท้าย Then/Else, For/Next, While/WhileEnd, Do/LpWhile, Break, Lbl/Goto, ⇒, Isz/Dsz, Not/And/Or และ Cls/ClrMemory
 
-## อัปเดตเฉพาะตัวอย่างเว็บ
+Prog เรียกโปรแกรมย่อย COMP ได้ 10 ระดับ ใช้ตัวแปร list มุม และงบประมวลผลร่วมกัน; Return กลับไปผู้เรียก ส่วน Stop จบทั้งสายการเรียก ?A เก็บค่าเดิมได้ใน engine และ ?→A รับค่าใหม่; เว็บรับค่าทีละคำถามตามลำดับรันจริง ◢ หยุดรอ EXE รวมถึงหลังคำสั่งกำหนดค่า
 
-ตัวอย่างใน `Preview/` เพิ่ม natural editor เศษส่วน/จำนวนคละ/ราก/รากอันดับ n/กำลัง/วงเล็บ และแก้ไขช่องด้วยลูกศรได้แล้ว รวมถึงผลลัพธ์ exact สำหรับ rational arithmetic, quadratic radicals, π แบบพหุคูณบางกรณี และตรีโกณมิติมุมพิเศษ มี S⇔D, Ans ที่เก็บรูปแบบ exact, CALC/SOLVE ที่รับค่าบน LCD และ SOLVE เลือกตัวแปร A–Z ได้
+ยังไม่รองรับภาษาทุกคำสั่ง เช่น Locate และเมทริกซ์ภายในโปรแกรมครบชุด รายการ FUNCTION บางตัวอาจยังไม่มี engine รองรับ การเลือก BASE-N ตอนสร้างไฟล์ยังไม่ใช่ runtime โปรแกรม BASE-N เต็มรูปแบบ List เป็นข้อมูลต่อการรัน ไม่ใช่หน่วยความจำถาวรเทียบเท่าเครื่องจริง
 
-SETUP, FUNCTION และ FMLA เปลี่ยนเป็นเมนูบน LCD; SETUP รองรับ MthIO/LineIO, DEG/RAD/GRA, FIX/SCI/NORM ส่วน LineIO ใช้ข้อความเชิงเส้นของ editor เดียวกัน ไม่ใช่การจำลอง LineIO แบบ byte-for-byte
+## ความต่างที่ยังมี
 
-การจัดรูปแบบใหม่ไม่ใช่ symbolic algebra ครบระบบ กรณีที่พิสูจน์รูปแบบ exact ไม่ได้จะคืนทศนิยม ไม่เดารากหรือ π จากค่าประมาณ ส่วน SwiftUI ยังใช้หน้าจอเดิมตามข้อจำกัดด้านล่าง และยังไม่ได้ทดสอบบน iOS
+- ลำดับเมนู หน้าย่อย สูตรสำเร็จ และการแสดงผลบางส่วนยังต่างจากเครื่องจริง; ไม่ใช่ LCD dot-matrix ระดับพิกเซล
+- ตัวเลขใช้ IEEE 754 double การปัดเศษ โดเมน และ convergence ของ SOLVE/อินทิกรัลอาจต่างจาก CASIO
+- ค่าคงที่ 40 รายการใช้ CODATA 2018/SI ไม่ใช่ข้อมูล CODATA 2000 ของเครื่องต้นฉบับ
+- ไม่มี LINK, การจำลอง CPU/ROM, ความจุ 28,500 bytes หรือเวลาทำงานจริง
+- เพดานป้องกันเว็บค้าง: 4,000 คำสั่ง, 20,000 ขั้นรันร่วมโปรแกรมย่อย, 2,000 บรรทัดผล, list 1,000 ช่อง
+- การแก้หน้าจออยู่ใน Preview; native SwiftUI ยังไม่ได้ปรับตามเว็บทั้งหมด และยังไม่ได้ทดสอบบน iPhone จริง
 
-## ใช้งานได้ในโค้ดเวอร์ชันนี้
+## แหล่งอ้างอิงและการตรวจ
 
-| หมวด | ความสามารถ |
-|---|---|
-| หน้าปัด | โครงปุ่มอ้างอิงภาพ ผิวสีเข้ม แผงสีเงิน LCD สีเขียว SHIFT / ALPHA / A-LOCK และ haptics |
-| COMP | + − × ÷, วงเล็บ, ยกกำลัง, เปอร์เซ็นต์, factorial, ราก, log, ln, exp, π, e |
-| ฟังก์ชัน | ตรีโกณมิติและ inverse, hyperbolic, DEG/RAD/GRA, nCr/nPr, gcd/lcm, Rnd |
-| เชิงซ้อน | a+bi, arithmetic, principal sqrt/log, Conjg, ReP, ImP, Arg, Abs |
-| พิกัด | Pol(x,y), Rec(r,θ); เก็บผลสองค่าใน X และ Y |
-| หน่วยความจำ | A–Z, Ans, M+/M−, STO/RCL, ประวัติ 100 รายการ |
-| SOLVE | Newton method สำหรับสมการหนึ่งตัวแปร X พร้อมค่าเริ่มต้นและ residual |
-| EQN | พหุนามดีกรี 2–3 และสมการเชิงเส้นพร้อมกันผ่านเมทริกซ์ |
-| SD / REG | ค่าเฉลี่ย ผลรวม SD แบบประชากร/ตัวอย่าง และการถดถอยเชิงเส้น |
-| Matrix | บวก ลบ คูณ transpose determinant inverse สูงสุด 10×10 |
-| Calculus | อนุพันธ์เชิงตัวเลข อินทิกรัล adaptive Simpson และผลรวมจำกัด |
-| TABLE / RECUR | ตารางสูงสุด 200 แถว; RECUR ใช้ A เป็นพจน์ก่อนหน้า, N เป็นดัชนี |
-| BASE-N | แปลงค่าจำนวนเต็ม signed 32-bit ระหว่างฐาน 2/8/10/16 |
-| FMLA | สูตรใช้งานทั่วไป 12 สูตร |
-| PROG | แก้ไข บันทึก และรัน subset ด้านล่างพร้อมผลลัพธ์และข้อผิดพลาด |
+[คู่มือ CASIO fx-5800P](https://support.casio.com/pdf/004/fx-5800P_E.pdf): E-9 (contrast), E-48 (Pol/Rec), E-114–119 (โปรแกรม)
 
-## ภาษาที่รองรับ
+[เพลย์ลิสต์ของผู้ใช้](https://www.youtube.com/playlist?list=PLqYbmGQRT_i1-h9FiJZkTY1p0BY_BgEBV) มี 35 คลิป รอบนี้ตรวจภาพหน้าจอ CONTRAST จากคลิป _uIl0xXlg_0 ช่วง 1:10 ประกอบคู่มือ ยังไม่ได้ตรวจทุกคลิปหรือทุกลำดับปุ่ม
 
-- นิพจน์และ `expression→A` รวมถึง `->` แทนลูกศร
-- `If condition`, `Then`, `Else`, `IfEnd`; ใช้บรรทัดแยกสำหรับคำสั่งทั่วไปหลัง Then
-- `Then "ข้อความ"` บนบรรทัดเดียวได้
-- `For start→A To end Step step`, `Next` และลูปซ้อน
-- `While condition`, `WhileEnd`, `Do`, `LpWhile condition`, `Break`
-- `Lbl name`, `Goto name`, `Stop`
-- `?→A` รับค่าจาก Inputs ที่กำหนดก่อนรัน ค่าจะถูกใช้ซ้ำหากถามตัวแปรเดิม
-- `n→Dim List X`, `value→List X[index]`, `List X[index]` โดยเริ่ม index ที่ 1
-- string output, นิพจน์ output และเครื่องหมาย `◢` ท้ายบรรทัด
-- คั่นคำสั่งด้วยขึ้นบรรทัดใหม่หรือ `:` และ comment ที่ขึ้นต้นด้วย `'`
-- ตัวเปรียบเทียบ `=`, `!=`, `<`, `>`, `<=`, `>=`
-
-เพดานป้องกันแอปค้าง: 4,000 คำสั่งในโปรแกรม, 20,000 ขั้นการประมวลผล, 2,000 บรรทัด output, 1,000 รายการต่อ list และ 4,096 ตัวอักษรต่อนิพจน์ คำสั่งที่ไม่รองรับจะแสดงข้อผิดพลาด ไม่ข้ามแบบเงียบๆ
-
-## ความต่างที่ยังสำคัญ
-
-1. **ไม่ใช่ firmware emulator** ไม่มีการจำลอง CPU, ROM, RAM หรือเวลาในการทำงานของเครื่องจริง
-2. หน้าปัดเป็น SwiftUI ที่สร้างใหม่ จึงยังไม่ตรงระดับพิกเซลกับภาพ ปุ่มฟังก์ชันย่อยบางตัวใช้วิธีป้อนแบบ Linear และยังไม่ได้ตรวจด้วย iPhone จริง
-3. ยังไม่มี Natural Textbook Display, exact radical/π results, mixed-fraction editing, FIX/SCI setup ครบชุด หรือจอ LCD แบบ dot-matrix จริง
-4. `S⇔D` เป็น continued-fraction approximation จำกัดตัวส่วน 1,000,000 ไม่ใช่ symbolic rational engine
-5. ตัวเลขใช้ IEEE 754 double; การปัดเศษ ลำดับการคำนวณบางกรณี domain และ convergence อาจต่างจาก CASIO โดยเฉพาะปัญหา ill-conditioned
-6. BASE-N ยังไม่มี arithmetic, bitwise logic, two’s complement และแป้น HEX ตามเครื่องจริง
-7. ไม่มี LINK หรือการส่งโปรแกรมระหว่างเครื่อง, คลัง 128 สูตรครบชุด, ค่าคงที่ 40 รายการ, regression รูปแบบอื่น หรือ frequency table
-8. โปรแกรมไม่ได้รองรับทุก dialect/command; ไม่มี subprogram `Prog`, interactive pause/input ทีละขั้น, `Locate`, string variables, matrix variables ในภาษาหรือการจำลองความจุ 28,500 bytes
-9. โปรแกรมจะเก็บตัวแปรเมื่อจบสำเร็จเท่านั้น; list เป็นข้อมูลชั่วคราวต่อการรัน ปิดโปรแกรมแล้วไม่เก็บ list
-10. เครื่องมือขั้นสูงใช้ sheet และคีย์บอร์ด iPhone ไม่ได้จำลองลำดับเมนูและ key sequence ของเครื่องจริงทั้งหมด ปุ่มป้อนโปรแกรมใช้ตัวแก้ไขใน FILE
-11. ออกแบบสำหรับ portrait บน iPhone; ยังไม่ได้ยืนยันขนาดปุ่ม, VoiceOver, Dynamic Type และ safe area ด้วยอุปกรณ์จริง
-
-## สิ่งที่ต้องทำเพื่อยืนยันระดับ 100%
-
-ต้องมีชุดข้อมูลทดสอบจากเครื่องจริงหรือ reference implementation ที่ตรวจสอบได้ แยกทดสอบทุกโหมด ทุก key sequence การปัดเศษ ข้อผิดพลาด หน่วยความจำ โปรแกรมและการแสดงผล รวมถึงเติมฟังก์ชันที่ยังขาด แล้วเทียบผลบน iOS จริง ไม่สามารถยืนยันจากภาพนิ่งเพียงภาพเดียวหรือจากการผ่าน unit tests ของโปรเจกต์นี้ได้
-
-
-## MATRIX / PROG / DMS update
-
-- Matrix memory list shows None or dimensions. EXE opens an existing matrix directly; Right redefines dimensions, DEL asks before deleting. Grid edits save on each EXE; EXIT returns to memory list.
-- COMP supports MatA–MatF and MatAns in arithmetic expressions, scalar multiply/divide, inverse, integer powers 0–10, det and Trn. Mat Ans is a read-only grid and operator keys chain it into the next calculation. Literal matrix assignment syntax, complex matrices and complete firmware context menus remain unsupported.
-- Program editor supports physical cursor arrows, insertion and deletion at the selection. Program execution suspends at each actual ?→variable (including repeated loop input); skipped branches do not ask for values. ◢ pauses until EXE. Execution resumes without rerunning earlier statements. Subroutine calls and the full Casio language are still not emulated.
-- Physical °′″ enters degrees, minutes, seconds in sequence; EXE evaluates sexagesimal input. The result key toggles decimal/DMS with carried seconds/minutes. Existing dms(d,m,s) engine API remains supported. General typed degree-unit suffix conversion beyond these workflows is not a full firmware emulation.
-- Natural input placeholders use proportionate CSS outlines instead of the platform-dependent square glyph.
+รัน `node Preview/build.cjs` และ `node --test Tests/*.test.cjs` เพื่อสร้างและตรวจเว็บ การผ่านการทดสอบเหล่านี้ไม่เท่ากับยืนยันความตรงกับเครื่องจริงทั้งหมด

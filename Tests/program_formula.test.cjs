@@ -14,8 +14,12 @@ const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-7, `${a} != ${b}`);
 
 test('Formula Mode has 8 pages, authentic equations, and formula tag metadata', () => {
   const m = make();
-  // Open FMLA menu
+  // Open FMLA choice -> select 2:Built-in
   press(m, 'fmla');
+  assert.equal(m.menu.kind, 'formulaChoice');
+  assert.match(m.menuText(), /1:Original\n2:Built-in/);
+
+  press(m, '2');
   assert.equal(m.menu.kind, 'formula');
   assert.equal(m.menu.page, 0);
   assert.match(m.menuText(), /1:Circle 2:Circum/);
@@ -34,12 +38,15 @@ test('Formula Mode has 8 pages, authentic equations, and formula tag metadata', 
   press(m, 'up');
   assert.equal(m.menu.page, 7);
 
-  // Close FMLA with EXIT
+  // Close Built-in with EXIT returns to formulaChoice
+  press(m, 'exit');
+  assert.equal(m.menu.kind, 'formulaChoice');
+  // Close formulaChoice with EXIT
   press(m, 'exit');
   assert.equal(m.menu, null);
 
-  // Select Circle Area (Page 0, Item 1)
-  press(m, 'fmla', '1');
+  // Select Circle Area (Page 0, Item 1) via fmla -> 2 -> 1
+  press(m, 'fmla', '2', '1');
   assert.ok(m.assignment);
   assert.equal(m.assignment.formulaName, 'Circle Area');
   assert.equal(m.assignment.formulaEq, 'S=pi×R^2');
@@ -48,8 +55,8 @@ test('Formula Mode has 8 pages, authentic equations, and formula tag metadata', 
   press(m, '5', 'exe', 'exe');
   near(m.value.re, 25 * Math.PI);
 
-  // Select Heron Formula (Page 4, Item 1)
-  press(m, 'ac', 'fmla');
+  // Select Heron Formula (Page 4, Item 1) via fmla -> 2
+  press(m, 'ac', 'fmla', '2');
   // Go to page 4
   press(m, 'down', 'down', 'down', 'down');
   assert.equal(m.menu.page, 4);
@@ -61,6 +68,58 @@ test('Formula Mode has 8 pages, authentic equations, and formula tag metadata', 
   // Enter triangle sides 3, 4, 5
   press(m, '3', 'exe', '4', 'exe', '5', 'exe', 'exe');
   near(m.value.re, 6);
+});
+
+test('FMLA key presents choice between 1:Original and 2:Built-in', () => {
+  const m = make();
+  // Press FMLA
+  press(m, 'fmla');
+  assert.equal(m.menu.kind, 'formulaChoice');
+  assert.match(m.menuText(), /1:Original\n2:Built-in/);
+
+  // 1:Original selection opens Original FMLA list
+  press(m, '1');
+  assert.equal(m.screen.type, 'list');
+  assert.equal(m.screen.title, 'Original FMLA');
+  assert.ok(m.screen.formulaList);
+  assert.ok(m.screen.lines.some(l => l.includes('CIRCLE-F')));
+
+  // Pressing EXIT in Original FMLA returns to formulaChoice
+  press(m, 'exit');
+  assert.equal(m.menu.kind, 'formulaChoice');
+
+  // 2:Built-in selection opens built-in formula catalog
+  press(m, '2');
+  assert.equal(m.menu.kind, 'formula');
+  assert.equal(m.menu.page, 0);
+
+  // Pressing EXIT in Built-in returns to formulaChoice
+  press(m, 'exit');
+  assert.equal(m.menu.kind, 'formulaChoice');
+
+  // Pressing EXIT in formulaChoice exits to main screen
+  press(m, 'exit');
+  assert.equal(m.menu, null);
+
+  // Running an Original Formula enters CALC mode
+  press(m, 'fmla', '1');
+  // CIRCLE-F is item 1 in Original FMLA
+  press(m, '1');
+  assert.ok(m.assignment);
+  assert.equal(m.assignment.formulaName, 'CIRCLE-F');
+  assert.equal(m.assignment.formulaEq, 'S=pi×R^2');
+  assert.equal(m.assignment.vars[0], 'R');
+
+  // Input R = 10 -> S = 100*pi
+  press(m, '1', '0', 'exe', 'exe');
+  near(m.value.re, 100 * Math.PI);
+
+  // When no user formulas exist, 1:Original displays "No formulas"
+  const mEmpty = make();
+  mEmpty.programs = mEmpty.programs.filter(p => p.mode !== 'Formula');
+  press(mEmpty, 'fmla', '1');
+  assert.equal(mEmpty.screen.type, 'output');
+  assert.deepEqual(mEmpty.screen.lines, ['No formulas']);
 });
 
 test('Program Mode 1:NEW authentic prompt, name entry, mode select and editor entry', () => {

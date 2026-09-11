@@ -51,8 +51,8 @@ test('Ans, assignment bridge and fractions', () => {
   near(ev('Ans+2',{Ans:a.value}).re,10);assert.equal(engine.fraction(ev('1/3')),'1/3');assert.equal(engine.fraction(ev('-1.25')),'-5/4');
 });
 test('coordinate conversion stores both coordinates and respects angle unit', () => {
-  const p=run({action:'evaluate',expression:'Pol(3,4)',angle:'DEG'});near(p.value.re,5);near(p.variables.Y.re,53.130102354156);
-  const r=run({action:'evaluate',expression:'Rec(2,pi/2)',angle:'RAD'});near(r.value.re,0);near(r.variables.Y.re,2);
+  const p=run({action:'evaluate',expression:'Pol(3,4)',angle:'DEG'});near(p.value.re,5);near(p.variables.J.re,53.130102354156);
+  const r=run({action:'evaluate',expression:'Rec(2,pi/2)',angle:'RAD'});near(r.value.re,0);near(r.variables.J.re,2);
   near(ev('Rnd(1/3)').re,.3333333333,1e-12);
 });
 test('malformed expressions, domains, stack and overflow fail explicitly', () => {

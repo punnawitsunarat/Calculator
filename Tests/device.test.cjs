@@ -96,7 +96,7 @@ test('SETUP lives on LCD and persists display, angle and FIX/SCI/NORM',()=>{
  assert.match(natural.numericHTML('1.429×10^-1'),/<sup>−1<\/sup>/);
 });
 test('FUNCTION and FMLA use numeric LCD selections',()=>{
- const m=make();press(m,'function','1','2','5','comma','2','exe');assert.equal(m.result,'10');press(m,'ac','fmla','1','2','exe','exe');near(m.value.re,4*Math.PI);
+ const m=make();press(m,'function','1','2','5','comma','2','exe');assert.equal(m.result,'10');press(m,'ac','fmla','2','1','2','exe','exe');near(m.value.re,4*Math.PI);
 });
 test('STO/RCL, AC and M+ do not reuse a cleared value',()=>{
  const m=make();press(m,'8','exe','shift','rcl','i');assert.equal(m.variables.A.re,8);press(m,'ac','rcl','i','exe');assert.equal(m.value.re,8);press(m,'memory','ac','memory');assert.equal(m.variables.M.re,8);assert.equal(m.variables.Ans.re,8);

@@ -150,6 +150,10 @@ test('Step 3: Physical fx-5800P Menu, FMLA pages, SETUP and nested EXIT navigati
 
   // 1. FMLA 4-page navigation and execution
   press(m,'fmla');
+  assert.equal(m.menu.kind,'formulaChoice');
+  assert.match(m.menuText(),/1:Original\n2:Built-in/);
+  // Press 2 to open Built-in catalog
+  press(m,'2');
   assert.equal(m.menu.kind,'formula');
   assert.match(m.menuText(),/1:Circle 2:Circum/);
   // Down to Page 2
@@ -164,12 +168,15 @@ test('Step 3: Physical fx-5800P Menu, FMLA pages, SETUP and nested EXIT navigati
   // Up back to Page 3
   press(m,'up');
   assert.match(m.menuText(),/1:Power  2:Joule/);
-  // EXIT closes FMLA cleanly
+  // EXIT returns to formulaChoice
+  press(m,'exit');
+  assert.equal(m.menu.kind,'formulaChoice');
+  // EXIT again closes FMLA cleanly
   press(m,'exit');
   assert.equal(m.menu,null);
 
   // 2. Select formula from Page 1 and run CALC
-  press(m,'fmla','3'); // Triangle: B×H/2
+  press(m,'fmla','2','3'); // Built-in -> Triangle: B×H/2
   assert.ok(m.assignment);
   assert.equal(m.assignment.vars[0],'B');
   press(m,'1','0','exe'); // B = 10
@@ -435,8 +442,8 @@ test('Step 8: Program Mode (MODE 5 / FILE) flow, subprograms, logic operators an
 test('Step 9: Direct Formula Editing and Recalculation Flow in FMLA Mode', () => {
   const m = make();
 
-  // 1. Select formula Circle (pi×R^2) from FMLA menu
-  press(m, 'fmla', '1');
+  // 1. Select formula Circle (pi×R^2) from FMLA menu (2:Built-in -> 1:Circle)
+  press(m, 'fmla', '2', '1');
   assert.ok(m.assignment);
   assert.equal(m.assignment.vars[0], 'R');
   assert.ok(m.editor.complete().includes('pi') && m.editor.complete().includes('R'));
@@ -466,7 +473,7 @@ test('Step 9: Direct Formula Editing and Recalculation Flow in FMLA Mode', () =>
   near(m.value.re, Math.PI * 100);
 
   // 5. Direct Formula Editing from assignment prompt using left arrow
-  press(m, 'fmla', '3'); // Triangle: B×H/2
+  press(m, 'fmla', '2', '3'); // Built-in -> Triangle: B×H/2
   assert.ok(m.assignment);
   assert.equal(m.assignment.entry.source, '');
   // Press left arrow drops into editor with formula loaded

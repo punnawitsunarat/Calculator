@@ -44,7 +44,7 @@ function render(){
     else {const value=state.engine.format(state.assignmentValue(name));panel.innerHTML='<div class="assign-equation">'+formulaTag+state.editor.html(false)+'</div><div class="assign-label">'+CalNatural.esc(name)+'? <span>'+ (a.index+1)+'/'+a.vars.length+'</span></div><div class="assign-value">'+(a.entry.source?a.entry.html(true):'<span class="stored-value">'+CalNatural.esc(value)+'</span><span class="math-cursor"></span>')+'</div><div class="assign-hint">'+(a.kind==='solve'?'▲▼ Select   SOLVE:Run':a.ready?'CALC:Run  ◀▶ Edit':'EXE:Store  CALC:Run')+'</div>';}
   }
   renderWorkflow(lcd,!!screen);
-  lcd.style.filter=state.contrast?'contrast('+(0.7+state.contrast*.06)+')':'';
+  lcd.style.filter='contrast('+(0.6+(state.contrast??10)*.04)+')';
   if(state.error){$('menu').hidden=false;$('menu').textContent=state.error+'\n◀▶:Edit  AC:Clear';}
   const cursor=document.querySelector('.math-cursor');if(cursor){const host=state.assignment?document.querySelector('.assign-value'):(state.inputPrompt?$('answer'):(state.screen?.type==='program'&&state.screen?.entry?document.querySelector('.formula-editor'):$('expression')));if(host){const r=cursor.getBoundingClientRect(),h=host.getBoundingClientRect();if(r.right>h.right)host.scrollLeft+=r.right-h.right+8;if(r.left<h.left)host.scrollLeft-=h.left-r.left+8;if(r.bottom>h.bottom)host.scrollTop+=r.bottom-h.bottom+8;if(r.top<h.top)host.scrollTop-=h.top-r.top+8;}}
 }
@@ -77,6 +77,7 @@ function renderWorkflow(lcd,menuOpen){
   const s=state.screen;host.hidden=!s||menuOpen;if(!s||menuOpen)return;
   const esc=CalNatural.esc;
   const naturalValue=v=>{if(state.display!=='MthIO')return esc(v);const e=new CalNatural.Editor();try{e.load(String(v));return e.html(false);}catch{return esc(v);}};
+  if(s.type==='contrast'){host.innerHTML='<div class="contrast-screen"><div>CONTRAST</div><div class="contrast-controls"><span>LIGHT<br>[◀]</span><span>DARK<br>[▶]</span></div></div>';return;}
   if(s.type==='program'){
     if(s.program?.mode==='Formula'&&s.entry){
       host.innerHTML=`<div class="workflow-title">${esc(s.title)}</div>`+
@@ -111,7 +112,7 @@ function renderWorkflow(lcd,menuOpen){
       return;
     }
   }
-  if(s.type==='list'&&s.programList){
+  if(s.type==='list'&&(s.programList||s.formulaList)){
     const start=Math.max(0,Math.min(s.index-1,s.lines.length-3));
     const visible=s.lines.slice(start,start+3);
     const linesHtml=visible.map((line,offset)=>{

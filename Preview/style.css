@@ -57,6 +57,8 @@ main{width:100%;height:100%;min-height:0;flex:none;padding:0;overflow:hidden}
 .matrix-grid-bottom{text-align:right;font:500 4.6cqw/1.2 var(--lcd-font);height:4.2cqw;display:flex;align-items:center;justify-content:flex-end;padding:0 0.8cqw;overflow:hidden}
 .prompt-label{font-weight:700;font-size:6.1cqw;letter-spacing:0.02em}
 .stored-value{opacity:.8}
+.contrast-screen{height:100%;display:flex;flex-direction:column;justify-content:space-between;font:600 5.7cqw/1.05 var(--lcd-font);padding:.2cqw .6cqw}
+.contrast-controls{display:flex;justify-content:space-between;text-align:center}
 
 /* CASIO fx-5800P Program Mode & Formula UI */
 .prog-list-content{display:flex;flex-direction:column;gap:0.2cqw;padding:0.2cqw 0}

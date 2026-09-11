@@ -51,6 +51,7 @@
     system:['1:Contrast\n2:Reset Setup\n3:Reset All'],clr:['1:Stat\n2:Memory'],base:['1:DEC  2:HEX\n3:BIN  4:OCT'],
     baseLogic:['1:and   2:or\n3:xor   4:xnor\n5:Not   6:Neg   ▼','1:d     2:h\n3:b     4:o     ▲'],
     fix:['Fix 0~9?'],sci:['Sci 0~9?\n0 = 10 digits'],norm:['Norm 1~2?'],
+    formulaChoice:['1:Original\n2:Built-in'],
     formula:[
       '1:Circle 2:Circum\n3:Triangle 4:Hypot\n5:Sphere 6:Cylind ▼',
       '1:Speed  2:Force\n3:Kinetic 4:Ohm\n5:Interst 6:Dist   ↕',
@@ -67,14 +68,17 @@
   class Machine extends Base{
     constructor(engine,natural,saved={}){
       super(engine,natural,saved);
+      this.contrast=Number.isFinite(saved.contrast)?Math.max(0,Math.min(20,saved.contrast)):10;
       this.screen=null;this.mode='COMP';this.base=saved.base||'DEC';this.frequency=!!saved.frequency;this.signed=saved.signed!==false;this.eng=!!saved.eng;this.complexFormat=saved.complexFormat||'a+bi';this.mixed=!!saved.mixed;this.matrices=saved.matrices||{};this.statRows=saved.statRows||[];this.regModel=saved.regModel||'Line';
       this.programs=saved.programs||[
         {name:'FOR-LOOP',source:saved.program||'25→A\n100→Dim List X\nIf A=25\nThen "FOR-LOOP"\nFor 1→N To 100\n10×N+3→List X[N]\nNext\nIfEnd\nList X[100]'},
         {name:'HERON',source:'"HERON"\n?→A:?→B:?→C\n(A+B+C)/2→S\n√(S(S-A)(S-B)(S-C))◢'},
-        {name:'QUADRATIC',source:'"QUADRATIC"\n?→A:?→B:?→C\nB^2-4AC→D\n(-B+√(D))/(2A)◢\n(-B-√(D))/(2A)'}
+        {name:'QUADRATIC',source:'"QUADRATIC"\n?→A:?→B:?→C\nB^2-4AC→D\n(-B+√(D))/(2A)◢\n(-B-√(D))/(2A)'},
+        {name:'CIRCLE-F',mode:'Formula',source:'S=pi×R^2'}
       ];
     }
-    snapshot(){return {...super.snapshot(),base:this.base,frequency:this.frequency,signed:this.signed,eng:this.eng,complexFormat:this.complexFormat,mixed:this.mixed,matrices:this.matrices,statRows:this.statRows,regModel:this.regModel,programs:this.programs};}
+    snapshot(){return {...super.snapshot(),contrast:this.contrast,base:this.base,frequency:this.frequency,signed:this.signed,eng:this.eng,complexFormat:this.complexFormat,mixed:this.mixed,matrices:this.matrices,statRows:this.statRows,regModel:this.regModel,programs:this.programs};}
+    adjustContrast(direction){this.contrast=Math.max(0,Math.min(20,(this.contrast??10)+(direction==='right'?1:-1)));}
     get active(){return this.screen?.entry||super.active;}
     refreshResult(){
       if(this.mode==='BASE-N'){
@@ -134,6 +138,24 @@
         }
       };
     }
+    chooseFormula(backAction=null){
+      const parent=backAction || (()=>this.openMenu('formulaChoice'));
+      const userFormulas=this.programs.filter(p=>p.mode==='Formula');
+      if(!userFormulas.length){this.output('Original FMLA',['No formulas'],parent);return;}
+      this.menu=null;
+      this.screen={
+        type:'list',
+        title:'Original FMLA',
+        lines:userFormulas.map((p,i)=>`${i+1}:${p.name}`),
+        index:0,
+        back:parent,
+        formulaList:true,
+        action:'RUN',
+        select:i=>{
+          this.runProgram(userFormulas[i]);
+        }
+      };
+    }
     confirm(title,run){const previous=this.screen;this.menu=null;this.screen={type:'confirm',title,run,back:()=>{this.screen=previous;}};}
     runProgram(p){
       if(p.mode==='Formula'){
@@ -153,6 +175,7 @@
     resumeProgram(value){
       const run=this.running;if(!run)return;
       const next=run.iterator.next(value);
+      if(next.value?.angle)this.angle=next.value.angle;
       if(next.done){this.variables=next.value.variables;this.running=null;this.output(run.program.name,next.value.output.length?next.value.output:['Done'],()=>this.chooseProgram('RUN'));return;}
       this.variables=next.value.variables;
       if(next.value.type==='input')this.wizard(run.program.name,[[next.value.variable,next.value.prompt||(next.value.variable+'?'),this.variables[next.value.variable]?.re||0]],v=>this.resumeProgram(v[next.value.variable]),()=>{this.running=null;this.chooseProgram('RUN');});
@@ -271,6 +294,7 @@
     matrixAction(name,operation){if(operation==='edit'){this.editMatrix(name);return;}const a=this.matrices[name];if(!a)throw Error('Dimension ERROR: define Mat '+name);if(operation==='view'){this.output('Mat '+name,a.map(r=>r.join(' ')),()=>this.openTool('matrix'));return;}if(['add','subtract','multiply'].includes(operation)){this.openMenu('matrixName',{operation:'binary',a,op:operation});return;}const answer=this.dispatch({action:'matrix',operation,a});this.output('Mat '+name,Array.isArray(answer.result)?answer.result.map(r=>r.join(' ')):[answer.result],()=>this.openTool('matrix'));}
     equation(type,size){const linear=type==='linear',data=Array.from({length:linear?size:1},()=>Array(linear?size+1:size+1).fill(0));this.grid('EQN coefficients',data,Array.from({length:size+1},(_,i)=>String.fromCharCode(97+i)),()=>{let lines;if(linear){const inv=this.dispatch({action:'matrix',operation:'inverse',a:data.map(r=>r.slice(0,-1))}).result;lines=inv.map((r,i)=>'X'+(i+1)+'='+r.reduce((sum,x,j)=>sum+x*data[j][size],0));}else{const poly=this.dispatch({action:'polynomial',coefficients:data[0]});lines=poly.roots.map((x,i)=>'X'+(i+1)+'='+x);if(poly.vertex){lines.push('X-Value '+poly.vertex.type+'='+poly.vertex.x);lines.push('Y-Value '+poly.vertex.type+'='+poly.vertex.y);}}this.output('EQN Result',lines,()=>this.equation(type,size));});}
     menuKey(id){const m=this.menu;if(!m)return false;const n=Number(id),p=m.page||0,k=m.kind;
+      if(k==='mode'&&(id==='left'||id==='right')){this.adjustContrast(id);return true;}
       if(id==='exit'){this.menu=m.parent||null;return true;}
       if((id==='down'||id==='up')&&pages[k]){const count=pages[k].length;m.page=(p+(id==='down'?1:-1)+count)%count;return true;}
       if(!/^\d$/.test(id))return super.menuKey(id);
@@ -278,6 +302,11 @@
       if(k==='mode'){if(p){if(n===1)this.output('LINK',['Not emulated','EXIT:Back']);if(n===2)sub('memory');if(n===3)sub('system');}else{const kind=['','comp','base','statistics','regression','program','recurrence','table','equation'][n];if(kind==='comp'){this.screen=null;this.menu=null;this.mode='COMP';}else if(kind)this.openTool(kind);}return true;}
       if(k==='setup'&&p){if(n===1||n===2){this.mixed=n===1;this.menu=null;this.refreshResult();}else if(n>=3&&n<=6)sub(['eng','complexFormat','frequency','signed'][n-3]);return true;}
       if(['eng','complexFormat','frequency','signed'].includes(k)){if(n===1||n===2){if(k==='eng')this.eng=n===1;if(k==='complexFormat')this.complexFormat=n===1?'a+bi':'r∠θ';if(k==='frequency')this.frequency=n===1;if(k==='signed')this.signed=n===1;this.menu=null;this.refreshResult();}return true;}
+      if(k==='formulaChoice'){
+        if(n===1){this.chooseFormula();return true;}
+        if(n===2){this.openMenu('formula');return true;}
+        return true;
+      }
       if(k==='functions'){const s=['','math','complex','commands','constants','angle','clr','stat','matrix'][n];if(s)sub(s);return true;}
       if(k==='functionsFormula'){const s=['','math','complex','constants','alphaChars','angle'][n];if(s)sub(s);return true;}
       if(k==='functionsBase'){const s=['','commands','baseLogic'][n];if(s)sub(s);return true;}
@@ -339,10 +368,11 @@
         else if(p===1){const pfx=['d','h','b','o'];if(pfx[n-1])token(pfx[n-1]);}
         return true;
       }
-      if(k==='system'){if(n===1)this.wizard('Contrast',[['contrast','Level (1–9)',5]],v=>{this.integer(v.contrast,1,9);this.contrast=v.contrast;this.screen=null;});if(n===2||n===3)this.confirm(n===2?'Reset Setup':'Reset All',()=>{this.angle='DEG';this.display='MthIO';this.numberMode='Norm';this.norm=1;this.mixed=false;this.eng=false;this.complexFormat='a+bi';this.frequency=false;this.signed=true;if(n===3){this.variables={};this.history=[];this.programs=[];this.matrices={};this.statRows=[];}this.clear();});return true;}
+      if(k==='system'){if(n===1){this.menu=null;this.screen={type:'contrast'};}if(n===2||n===3)this.confirm(n===2?'Reset Setup':'Reset All',()=>{this.angle='DEG';this.display='MthIO';this.numberMode='Norm';this.norm=1;this.mixed=false;this.eng=false;this.complexFormat='a+bi';this.frequency=false;this.signed=true;if(n===3){this.variables={};this.history=[];this.programs=[];this.matrices={};this.statRows=[];}this.clear();});return true;}
       return super.menuKey(id);
     }
     screenKey(key){const s=this.screen,[id,label,value,shiftValue,alpha]=key;if(!s)return false;
+      if(s.type==='contrast'){if(id==='left'||id==='right')this.adjustContrast(id);else if(id==='exit'||id==='ac')this.screen=null;return true;}
       if(id==='exit'){if(s.type==='programPause')this.running=null;this.screen=null;if(s.back)s.back();return true;}
       if(s.type==='confirm'){if(id==='exe')s.run();return true;}
       if(s.type==='programPause'){if(id==='exe')this.resumeProgram();return true;}
@@ -519,7 +549,7 @@
       if(s.stat&&(id==='calc'||id==='function')){this.statRows=s.data.slice(0,s.committed).map(r=>r.slice());if(id==='calc')this.statResults();else this.openMenu('stat');return true;}
       return false;
     }
-    press(key){try{const id=key[0];if(this.on&&!this.error&&!this.menu&&!this.alpha&&id==='dms'){this.shift=false;if(this.done&&!this.screen&&!this.assignment){this.dmsDisplay=!this.dmsDisplay;this.result=this.dmsDisplay?this.dmsText(this.value):this.numericText();this.resultHTML=null;}else{const tail=this.active.source.split(/[+−×÷=,]/).at(-1);const marker=/°[^′]*′[^″]*$/.test(tail)?'″':/°[^′]*$/.test(tail)?'′':'°';this.insert(marker);}return;}if(this.on&&!this.menu&&!this.screen&&!this.error&&id==='file'&&!this.shift&&!this.alpha){this.chooseProgram('RUN',()=>{this.screen=null;});return;}if(this.error&&id==='exit'){this.error=null;return;}if(this.screen&&id==='ac'&&!this.shift){if(this.screen.entry){this.screen.entry.clear();this.error=null;return;}if(this.screen.type==='program'){const at=this.screen.cursor??this.screen.program.source.length;const lineStart=this.screen.program.source.lastIndexOf('\n',at-1)+1;const lineEnd=this.screen.program.source.indexOf('\n',at);const end=lineEnd<0?this.screen.program.source.length:lineEnd;this.screen.cursor=lineStart;this.screen.selectionEnd=end;this.programInsert('');return;}this.screen=null;}if(this.on&&!this.error&&!this.menu&&!this.screen&&this.mode==='BASE-N'){if(!this.shift&&!this.alpha){if(id==='function'){this.openMenu('baseLogic');return;}const baseMap={square:'DEC',log:'HEX',ln:'BIN',power:'OCT'};if(baseMap[id]){this.base=baseMap[id];this.refreshResult();return;}if(this.base==='HEX'){const hexMap={i:'A',fraction:'B',dms:'C',sin:'D',cos:'E',tan:'F'};if(hexMap[id]){this.insert(hexMap[id]);return;}}}}if(this.on&&!this.error&&!this.menu&&this.screen&&!['shift','alpha'].includes(id)&&!(this.shift&&id==='mode')&&this.screenKey(key))return;const action=super.press(key);if(action?.tool)this.openTool(action.tool,action.operation);return;}catch(e){this.error=e.message||'Math ERROR';}}
+    press(key){try{const id=key[0];if(this.on&&!this.error&&!this.alpha&&id==='fmla'&&!this.shift){this.screen=null;this.assignment=null;this.openMenu('formulaChoice');return;}if(this.on&&!this.error&&!this.menu&&!this.alpha&&id==='dms'){this.shift=false;if(this.done&&!this.screen&&!this.assignment){this.dmsDisplay=!this.dmsDisplay;this.result=this.dmsDisplay?this.dmsText(this.value):this.numericText();this.resultHTML=null;}else{const tail=this.active.source.split(/[+−×÷=,]/).at(-1);const marker=/°[^′]*′[^″]*$/.test(tail)?'″':/°[^′]*$/.test(tail)?'′':'°';this.insert(marker);}return;}if(this.on&&!this.menu&&!this.screen&&!this.error&&id==='file'&&!this.shift&&!this.alpha){this.chooseProgram('RUN',()=>{this.screen=null;});return;}if(this.error&&id==='exit'){this.error=null;return;}if(this.screen&&id==='ac'&&!this.shift){if(this.screen.entry){this.screen.entry.clear();this.error=null;return;}if(this.screen.type==='program'){const at=this.screen.cursor??this.screen.program.source.length;const lineStart=this.screen.program.source.lastIndexOf('\n',at-1)+1;const lineEnd=this.screen.program.source.indexOf('\n',at);const end=lineEnd<0?this.screen.program.source.length:lineEnd;this.screen.cursor=lineStart;this.screen.selectionEnd=end;this.programInsert('');return;}this.screen=null;}if(this.on&&!this.error&&!this.menu&&!this.screen&&this.mode==='BASE-N'){if(!this.shift&&!this.alpha){if(id==='function'){this.openMenu('baseLogic');return;}const baseMap={square:'DEC',log:'HEX',ln:'BIN',power:'OCT'};if(baseMap[id]){this.base=baseMap[id];this.refreshResult();return;}if(this.base==='HEX'){const hexMap={i:'A',fraction:'B',dms:'C',sin:'D',cos:'E',tan:'F'};if(hexMap[id]){this.insert(hexMap[id]);return;}}}}if(this.on&&!this.error&&!this.menu&&this.screen&&!['shift','alpha'].includes(id)&&!(this.shift&&id==='mode')&&this.screenKey(key))return;const action=super.press(key);if(action?.tool)this.openTool(action.tool,action.operation);return;}catch(e){this.error=e.message||'Math ERROR';}}
   }
   root.CalLCD={Machine};if(typeof module!=='undefined')module.exports=root.CalLCD;
 })(typeof globalThis!=='undefined'?globalThis:this);

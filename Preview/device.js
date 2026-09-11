@@ -192,6 +192,7 @@
           '1:Frict  2:Buoyanc\n3:Carnot 4:Photon\n5:Snell  6:Stadia   ▲'
         ],
         memory:[Object.keys(this.variables).length?Object.entries(this.variables).slice(page*3,page*3+3).map(([k,v])=>`${k}=${this.engine.format(v)}`).join('\n')+'\n          ▲ ▼':'MEMORY\nAll variables = 0'],
+        formulaChoice:['1:Original\n2:Built-in'],
         system:['1:Clear variables\n2:Clear history\nEXIT:Cancel'],confirm:['Reset?\nEXE:Yes EXIT:No'],link:['LINK\nNot supported\nEXIT:Back']
       };
       return menus[kind]?.[Math.min(page,(menus[kind]?.length||1)-1)]||'';
@@ -202,7 +203,11 @@
       if(id==='up'||id==='down'){if(kind==='mode')this.menu.page=(this.menu.page||0)?0:1;else if(kind==='formula')this.menu.page=((this.menu.page||0)+(id==='down'?1:-1)+8)%8;else if(kind==='memory')this.menu.page=Math.max(0,Math.min(Math.ceil(Object.keys(this.variables).length/3)-1,(this.menu.page||0)+(id==='down'?1:-1)));return true;}
       if(kind==='confirm'&&id==='exe'){if(this.menu.target===1)this.variables={};else this.history=[];this.menu=null;return true;}
       if(!/^\d$/.test(id))return true;
-      if(kind==='mode'){
+      if(kind==='formulaChoice'){
+        if(digit===1){if(typeof this.chooseFormula==='function')return this.chooseFormula();this.menu={kind:'formula',page:0,parent:this.menu};return true;}
+        if(digit===2){this.menu={kind:'formula',page:0,parent:this.menu};return true;}
+        return true;
+      }else if(kind==='mode'){
         if(this.menu.page){if(digit===1)this.menu={kind:'link'};if(digit===2)this.menu={kind:'memory'};if(digit===3)this.menu={kind:'system'};return true;}
         const tool=['','comp','base','statistics','regression','program','recurrence','table','equation'][digit];if(tool){this.menu=null;return tool==='comp'?true:{tool};}
       }else if(kind==='setup'){
@@ -315,7 +320,7 @@
             if(this.inputPrompt){this.inputPrompt.entry.clear();this.inputPrompt=null;this.multiStatement=null;this.dispPause=false;}
             this.menu={kind:'mode',page:0};this.assignment=null;return;
           case'function':this.menu={kind:'functions'};return;
-          case'fmla':this.menu={kind:'formula',page:0};return;
+          case'fmla':this.menu={kind:'formulaChoice',page:0};return;
           case'file':return {tool:'program'};
           case'calc':case'solve':this.beginAssignment(id);return;
           case'rcl':this.memory='RCL';return;
