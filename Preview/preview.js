@@ -43,6 +43,8 @@ function render(){
     if(a.solved)panel.innerHTML='<div class="assign-equation">'+formulaTag+state.editor.html(false)+'</div><div class="solve-result">'+CalNatural.esc(a.solution)+'='+CalNatural.esc(state.result)+'</div><div class="residual">L−R='+CalNatural.esc(Number(a.residual.toPrecision(4)))+'</div>';
     else {const value=state.engine.format(state.assignmentValue(name));panel.innerHTML='<div class="assign-equation">'+formulaTag+state.editor.html(false)+'</div><div class="assign-label">'+CalNatural.esc(name)+'? <span>'+ (a.index+1)+'/'+a.vars.length+'</span></div><div class="assign-value">'+(a.entry.source?a.entry.html(true):'<span class="stored-value">'+CalNatural.esc(value)+'</span><span class="math-cursor"></span>')+'</div><div class="assign-hint">'+(a.kind==='solve'?'▲▼ Select   SOLVE:Run':a.ready?'CALC:Run  ◀▶ Edit':'EXE:Store  CALC:Run')+'</div>';}
   }
+  $('expression').style.visibility=state.screen||state.assignment||screen?'hidden':'';
+  $('answer').style.visibility=state.screen||state.assignment||screen?'hidden':'';
   renderWorkflow(lcd,!!screen);
   lcd.style.filter='contrast('+(0.6+(state.contrast??10)*.04)+')';
   if(state.error){$('menu').hidden=false;$('menu').textContent=state.error+'\n◀▶:Edit  AC:Clear';}
@@ -77,6 +79,12 @@ function renderWorkflow(lcd,menuOpen){
   const s=state.screen;host.hidden=!s||menuOpen;if(!s||menuOpen)return;
   const esc=CalNatural.esc;
   const naturalValue=v=>{if(state.display!=='MthIO')return esc(v);const e=new CalNatural.Editor();try{e.load(String(v));return e.html(false);}catch{return esc(v);}};
+  if(s.tableRows){
+    const start=Math.max(0,Math.min(s.index-1,s.tableRows.length-3));
+    const rows=s.tableRows.slice(start,start+3).map((r,i)=>'<div class="table-row">'+r.map((v,c)=>'<span class="'+(start+i===s.index&&c===s.column?'selected':'')+'">'+esc(Number(Number(v).toPrecision(6)))+'</span>').join('')+'</div>').join('');
+    host.innerHTML='<div class="table-row"><span>X</span><span>F(X)</span></div>'+rows+'<div class="matrix-grid-bottom">'+naturalValue(s.tableRows[s.index][s.column])+'</div>';return;
+  }
+  if(s.equationResult){const line=s.lines[s.index],at=line.indexOf('=');host.innerHTML='<div class="workflow-title">'+esc(line.slice(0,at))+'</div><div class="workflow-entry">'+naturalValue(line.slice(at+1))+'</div><div class="assign-hint">'+(s.index>0?'▲ ':'')+(s.index<s.lines.length-1?'▼':'')+'</div>';return;}
   if(s.type==='contrast'){host.innerHTML='<div class="contrast-screen"><div>CONTRAST</div><div class="contrast-controls"><span>LIGHT<br>[◀]</span><span>DARK<br>[▶]</span></div></div>';return;}
   if(s.type==='program'){
     if(s.program?.mode==='Formula'&&s.entry){
@@ -156,7 +164,7 @@ function renderWorkflow(lcd,menuOpen){
       const cellsHtml=visibleCols.map(ci=>{
         const isSel=(ri===r&&ci===c);
         const v=s.data[ri][ci];
-        return `<span class="${isSel?'selected':''}">${esc(Number(v.toPrecision(6)))}</span>`;
+        return `<span class="${isSel?'selected':''}">${esc(Number(Number(v).toPrecision(6)))}</span>`;
       }).join('');
       return `<div class="matrix-grid-row"><span class="matrix-row-num">${ri+1}</span><span class="matrix-row-bracket left">[</span><div class="matrix-row-cells" style="grid-template-columns:repeat(${numCols},1fr)">${cellsHtml}</div><span class="matrix-row-bracket right">]</span></div>`;
     }).join('');
